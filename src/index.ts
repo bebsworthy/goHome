@@ -1,9 +1,11 @@
-// Import axios for making HTTP requests
-import axios from 'axios';
+// Import dotenv to load environment variables from a .env file
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // --- Configuration ---
-// IMPORTANT: Replace 'YOUR_API_KEY' with your actual Navitia API key.
-const API_KEY = 'YOUR_API_KEY';
+const API_KEY = process.env.NAVITIA_API_KEY; // Load API key from .env
 const NAVITIA_BASE_URL = 'https://api.navitia.io/v1';
 
 // Station IDs.
@@ -19,8 +21,7 @@ const COVERAGE = 'sncf'; // Or 'fr-idf' if specifically for Île-de-France and t
 // Define commercial modes that represent trains. Case-insensitive check will be applied.
 const TRAIN_COMMERCIAL_MODES = ['TRAIN', 'TER', 'TRANSILIEN', 'INTERCITÉS', 'TGV', 'RER'];
 
-
-// --- Interfaces for Navitia API Response ---
+// --- Interfaces for Navitia API Response (same as before) ---
 interface StopDateTime {
     arrival_date_time: string;
     departure_date_time: string;
@@ -73,7 +74,7 @@ interface NavitiaJourneysResponse {
     disruptions?: any[];
 }
 
-// --- Helper Functions ---
+// --- Helper Functions (same as before) ---
 
 /**
  * Formats a JavaScript Date object into Navitia's datetime string format (YYYYMMDDTHHmmss).
@@ -102,7 +103,9 @@ function parseNavitiaDateTime(dateTimeStr: string): Date {
     const hours = parseInt(dateTimeStr.substring(9, 11), 10);
     const minutes = parseInt(dateTimeStr.substring(11, 13), 10);
     const seconds = parseInt(dateTimeStr.substring(13, 15), 10);
-    return new Date(Date.UTC(year, month, day, hours, minutes, seconds)); // Use UTC to match Navitia's typical timezone handling
+    // Navitia typically uses UTC or the local time of the covered area.
+    // For consistency, using UTC here. Adjust if local timezone interpretation is needed.
+    return new Date(Date.UTC(year, month, day, hours, minutes, seconds));
 }
 
 /**
@@ -117,8 +120,9 @@ function formatTime(date: Date): string {
 
 // --- Main Function to Get and Display Train Journeys ---
 async function getAndDisplayTrainJourneys(): Promise<void> {
-    if (API_KEY === 'YOUR_API_KEY') {
-        console.error("🛑 Error: Please replace 'YOUR_API_KEY' with your actual Navitia API key in the script.");
+    if (!API_KEY) {
+        console.error("🛑 Error: NAVITIA_API_KEY is not set in your .env file or environment variables.");
+        console.log("Please create a .env file with NAVITIA_API_KEY=YOUR_KEY or set it as an environment variable.");
         return;
     }
 
@@ -126,51 +130,67 @@ async function getAndDisplayTrainJourneys(): Promise<void> {
     const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
     const currentDateTimeForAPI = toNavitiaDateTime(now);
 
-    const journeysUrl = `${NAVITIA_BASE_URL}/coverage/${COVERAGE}/journeys`;
+    // Construct URL with query parameters for fetch
+    const params = new URLSearchParams({
+        from: FROM_STATION_ID,
+        to: TO_STATION_ID,
+        datetime: currentDateTimeForAPI,
+        datetime_represents: 'departure',
+        count: '20', // Request a decent number of journeys to filter from
+    });
+    const journeysUrl = `${NAVITIA_BASE_URL}/coverage/${COVERAGE}/journeys?${params.toString()}`;
 
     console.log(`🔍 Searching for trains from ${FROM_STATION_ID} to ${TO_STATION_ID}`);
     console.log(`🕒 Departing between ${formatTime(now)} and ${formatTime(oneHourFromNow)} (Paris Time)`);
     console.log(`--------------------------------------------------`);
 
     try {
-        const response = await axios.get<NavitiaJourneysResponse>(journeysUrl, {
-            params: {
-                from: FROM_STATION_ID,
-                to: TO_STATION_ID,
-                datetime: currentDateTimeForAPI,
-                datetime_represents: 'departure', // Search for journeys starting from 'datetime'
-                count: 20, // Request a decent number of journeys to filter from
-                // You can add other parameters like 'min_nb_transfers', 'max_nb_transfers', etc.
-                // 'allowed_id[]': ['commercial_mode:Train'] // This might be too restrictive if direct train is not available, filtering client-side is more flexible
-            },
-            auth: {
-                username: API_KEY,
-                password: '' // Password should be blank as per Navitia docs for token auth
-            },
+        // Basic Auth: username is the API key, password is empty
+        const basicAuthToken = Buffer.from(`${API_KEY}:`).toString('base64');
+
+        const response = await fetch(journeysUrl, {
+            method: 'GET',
             headers: {
+                'Authorization': `Basic ${basicAuthToken}`,
                 'Accept': 'application/json'
             }
         });
 
-        if (response.data.error) {
-            console.error(`API Error: ${response.data.error.id} - ${response.data.error.message}`);
+        if (!response.ok) {
+            // Attempt to get more detailed error from Navitia if possible
+            let errorBody = `Status: ${response.status}`;
+            try {
+                const errorData = await response.json() as NavitiaJourneysResponse; // Type assertion
+                if (errorData.error) {
+                    errorBody += ` - ${errorData.error.id}: ${errorData.error.message}`;
+                } else {
+                    errorBody += ` - ${await response.text()}`;
+                }
+            } catch (e) {
+                // If parsing error body fails, just use the status text
+                errorBody += ` - ${response.statusText}`;
+            }
+            throw new Error(`API request failed: ${errorBody}`);
+        }
+
+        const responseData = await response.json() as NavitiaJourneysResponse; // Type assertion
+
+        if (responseData.error) {
+            console.error(`API Error: ${responseData.error.id} - ${responseData.error.message}`);
             return;
         }
 
-        if (!response.data.journeys || response.data.journeys.length === 0) {
+        if (!responseData.journeys || responseData.journeys.length === 0) {
             console.log("🤷 No journeys found for the specified criteria.");
             return;
         }
         
         const validTrainJourneys: Journey[] = [];
 
-        for (const journey of response.data.journeys) {
-            // Parse journey departure time
+        for (const journey of responseData.journeys) {
             const journeyDepartureTime = parseNavitiaDateTime(journey.departure_date_time);
 
-            // Check if the journey departs within the next hour
             if (journeyDepartureTime >= now && journeyDepartureTime <= oneHourFromNow) {
-                // Check if the journey contains at least one train section
                 const hasTrainSection = journey.sections.some(section =>
                     section.type === 'public_transport' &&
                     section.display_informations &&
@@ -188,7 +208,6 @@ async function getAndDisplayTrainJourneys(): Promise<void> {
             return;
         }
 
-        // Sort the valid train journeys by arrival time
         validTrainJourneys.sort((a, b) => {
             const arrivalA = parseNavitiaDateTime(a.arrival_date_time).getTime();
             const arrivalB = parseNavitiaDateTime(b.arrival_date_time).getTime();
@@ -221,26 +240,26 @@ async function getAndDisplayTrainJourneys(): Promise<void> {
         });
 
     } catch (error) {
-        if (axios.isAxiosError(error)) {
-            console.error(" Axios request failed:", error.message);
-            if (error.response) {
-                console.error(" Status:", error.response.status);
-                console.error(" Data:", error.response.data);
-            }
+        if (error instanceof Error) {
+            console.error("❌ An error occurred:", error.message);
         } else {
-            console.error("An unexpected error occurred:", error);
+            console.error("❌ An unexpected error occurred:", error);
         }
     }
 }
 
 // --- Run the main function ---
+// Note: `fetch` is natively available in Node.js v18+.
+// If using an older version, you might need a polyfill like 'node-fetch'.
 getAndDisplayTrainJourneys();
 
 // To run this script:
-// 1. Save it as a .ts file (e.g., getTrains.ts).
-// 2. Ensure you have Node.js and TypeScript installed.
-// 3. Install axios: npm install axios @types/node
-// 4. Compile: tsc getTrains.ts
-// 5. Run: node getTrains.js
+// 1. Create a .env file in the same directory:
+//    NAVITIA_API_KEY=YOUR_ACTUAL_API_KEY
+// 2. Save this script as a .ts file (e.g., getTrains.ts).
+// 3. Ensure you have Node.js (v18+ recommended for native fetch) and TypeScript installed.
+// 4. Install dependencies: npm install dotenv @types/node
+// 5. Compile: tsc getTrains.ts
+// 6. Run: node getTrains.js
 // Or directly run with ts-node: npm install -g ts-node typescript (if not already installed globally)
 // Then: ts-node getTrains.ts
