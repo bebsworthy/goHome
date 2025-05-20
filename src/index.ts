@@ -132,6 +132,33 @@ function formatTime(date: Date): string {
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 }
 
+// --- Function to Call Navitia API ---
+async function callNavitia(
+    fromStationId: string,
+    toStationId: string,
+    currentDateTimeForAPI: string,
+    apiKey: string
+): Promise<Response> {
+    const params = new URLSearchParams({
+        from: fromStationId,
+        to: toStationId,
+        datetime: currentDateTimeForAPI,
+        datetime_represents: 'departure',
+        count: '20', // Request a decent number of journeys to filter from
+    });
+    const journeysUrl = `${NAVITIA_BASE_URL}/coverage/${COVERAGE}/journeys?${params.toString()}`;
+
+    // Basic Auth: username is the API key, password is empty
+    const basicAuthToken = Buffer.from(`${apiKey}:`).toString('base64');
+
+    return fetch(journeysUrl, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Basic ${basicAuthToken}`,
+            'Accept': 'application/json'
+        }
+    });
+}
 
 // --- Main Function to Get and Display Train Journeys ---
 async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
@@ -156,27 +183,8 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
     const currentDateTimeForAPI = toNavitiaDateTime(now);
     requestedApiDepartureTimeISO = parseNavitiaDateTime(currentDateTimeForAPI).toISOString();
 
-    // Construct URL with query parameters for fetch
-    const params = new URLSearchParams({
-        from: FROM_STATION_ID,
-        to: TO_STATION_ID,
-        datetime: currentDateTimeForAPI,
-        datetime_represents: 'departure',
-        count: '20', // Request a decent number of journeys to filter from
-    });
-    const journeysUrl = `${NAVITIA_BASE_URL}/coverage/${COVERAGE}/journeys?${params.toString()}`;
-
     try {
-        // Basic Auth: username is the API key, password is empty
-        const basicAuthToken = Buffer.from(`${API_KEY}:`).toString('base64');
-
-        const response = await fetch(journeysUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Basic ${basicAuthToken}`,
-                'Accept': 'application/json'
-            }
-        });
+        const response = await callNavitia(FROM_STATION_ID, TO_STATION_ID, currentDateTimeForAPI, API_KEY!);
 
         if (!response.ok) {
             // Attempt to get more detailed error from Navitia if possible
