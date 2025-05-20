@@ -74,6 +74,17 @@ interface NavitiaJourneysResponse {
     disruptions?: any[];
 }
 
+// --- Result type for getAndDisplayTrainJourneys ---
+interface TrainJourneysResult {
+    data?: Journey[];
+    message?: string; // For informational messages like "no journeys found"
+    error?: {
+        type: string;
+        message: string;
+        details?: any;
+    };
+}
+
 // --- Helper Functions (same as before) ---
 
 /**
@@ -119,11 +130,14 @@ function formatTime(date: Date): string {
 
 
 // --- Main Function to Get and Display Train Journeys ---
-async function getAndDisplayTrainJourneys(): Promise<void> {
+async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
     if (!API_KEY) {
-        console.error("🛑 Error: NAVITIA_API_KEY is not set in your .env file or environment variables.");
-        console.log("Please create a .env file with NAVITIA_API_KEY=YOUR_KEY or set it as an environment variable.");
-        return;
+        return {
+            error: {
+                type: "CONFIGURATION_ERROR",
+                message: "NAVITIA_API_KEY is not set in your .env file or environment variables. Please create a .env file with NAVITIA_API_KEY=YOUR_KEY or set it as an environment variable."
+            }
+        };
     }
 
     const now = new Date();
@@ -139,10 +153,6 @@ async function getAndDisplayTrainJourneys(): Promise<void> {
         count: '20', // Request a decent number of journeys to filter from
     });
     const journeysUrl = `${NAVITIA_BASE_URL}/coverage/${COVERAGE}/journeys?${params.toString()}`;
-
-    console.log(`🔍 Searching for trains from ${FROM_STATION_ID} to ${TO_STATION_ID}`);
-    console.log(`🕒 Departing between ${formatTime(now)} and ${formatTime(oneHourFromNow)} (Paris Time)`);
-    console.log(`--------------------------------------------------`);
 
     try {
         // Basic Auth: username is the API key, password is empty
@@ -170,42 +180,47 @@ async function getAndDisplayTrainJourneys(): Promise<void> {
                 // If parsing error body fails, just use the status text
                 errorBody += ` - ${response.statusText}`;
             }
-            throw new Error(`API request failed: ${errorBody}`);
+            return {
+                error: {
+                    type: "API_REQUEST_FAILED",
+                    message: `API request failed: ${errorBody}`
+                }
+            };
         }
 
         const responseData = await response.json() as NavitiaJourneysResponse; // Type assertion
 
         if (responseData.error) {
-            console.error(`API Error: ${responseData.error.id} - ${responseData.error.message}`);
-            return;
-        }
-
-        if (!responseData.journeys || responseData.journeys.length === 0) {
-            console.log("🤷 No journeys found for the specified criteria.");
-            return;
+            return {
+                error: {
+                    type: "NAVITIA_API_ERROR",
+                    message: `API Error: ${responseData.error.id} - ${responseData.error.message}`
+                }
+            };
         }
         
         const validTrainJourneys: Journey[] = [];
 
-        for (const journey of responseData.journeys) {
-            const journeyDepartureTime = parseNavitiaDateTime(journey.departure_date_time);
+        if (responseData.journeys) { // Iterate only if responseData.journeys is an array
+            for (const journey of responseData.journeys) {
+                const journeyDepartureTime = parseNavitiaDateTime(journey.departure_date_time);
 
-            if (journeyDepartureTime >= now && journeyDepartureTime <= oneHourFromNow) {
-                const hasTrainSection = journey.sections.some(section =>
-                    section.type === 'public_transport' &&
-                    section.display_informations &&
-                    TRAIN_COMMERCIAL_MODES.some(mode => section.display_informations!.commercial_mode.toUpperCase().includes(mode))
-                );
+                if (journeyDepartureTime >= now && journeyDepartureTime <= oneHourFromNow) {
+                    const hasTrainSection = journey.sections.some(section =>
+                        section.type === 'public_transport' &&
+                        section.display_informations &&
+                        TRAIN_COMMERCIAL_MODES.some(mode => section.display_informations!.commercial_mode.toUpperCase().includes(mode))
+                    );
 
-                if (hasTrainSection) {
-                    validTrainJourneys.push(journey);
+                    if (hasTrainSection) {
+                        validTrainJourneys.push(journey);
+                    }
                 }
             }
         }
 
         if (validTrainJourneys.length === 0) {
-            console.log("🤷 No train journeys found departing in the next hour.");
-            return;
+            return { data: [], message: "No train journeys found departing in the next hour matching criteria." };
         }
 
         validTrainJourneys.sort((a, b) => {
@@ -214,44 +229,30 @@ async function getAndDisplayTrainJourneys(): Promise<void> {
             return arrivalA - arrivalB;
         });
 
-        console.log("\n✅ Upcoming Trains (sorted by arrival time):\n");
-        validTrainJourneys.forEach((journey, index) => {
-            const departure = parseNavitiaDateTime(journey.departure_date_time);
-            const arrival = parseNavitiaDateTime(journey.arrival_date_time);
-            
-            const trainSections = journey.sections.filter(s => 
-                s.type === 'public_transport' && 
-                s.display_informations &&
-                TRAIN_COMMERCIAL_MODES.some(mode => s.display_informations!.commercial_mode.toUpperCase().includes(mode))
-            );
-            
-            const trainInfo = trainSections.map(s => 
-                `${s.display_informations?.commercial_mode} ${s.display_informations?.code || ''} (Direction: ${s.display_informations?.direction || 'N/A'})`
-            ).join(', then ');
-
-            console.log(
-                `${index + 1}. Departs: ${formatTime(departure)} -> Arrives: ${formatTime(arrival)} (Duration: ${Math.round(journey.duration / 60)} min)`
-            );
-            console.log(`   Train(s): ${trainInfo}`);
-            if (journey.nb_transfers > 0) {
-                 console.log(`   Transfers: ${journey.nb_transfers}`);
-            }
-            console.log(`   ---`);
-        });
+        return { data: validTrainJourneys };
 
     } catch (error) {
-        if (error instanceof Error) {
-            console.error("❌ An error occurred:", error.message);
-        } else {
-            console.error("❌ An unexpected error occurred:", error);
-        }
+        // This catches errors from synchronous code before/after fetch, or if fetch itself throws unexpectedly.
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+        return {
+            error: {
+                type: "UNEXPECTED_ERROR_IN_FUNCTION",
+                message: errorMessage,
+                details: !(error instanceof Error) ? error : undefined
+            }
+        };
     }
 }
 
 // --- Run the main function ---
 // Note: `fetch` is natively available in Node.js v18+.
 // If using an older version, you might need a polyfill like 'node-fetch'.
-getAndDisplayTrainJourneys();
+getAndDisplayTrainJourneys().then(result => {
+    console.log(JSON.stringify(result, null, 2));
+}).catch(err => {
+    // This catch is a safeguard for unhandled promise rejections from getAndDisplayTrainJourneys itself.
+    console.error("Unhandled error calling getAndDisplayTrainJourneys:", JSON.stringify(err, null, 2));
+});
 
 // To run this script:
 // 1. Create a .env file in the same directory:
