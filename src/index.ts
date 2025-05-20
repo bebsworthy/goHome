@@ -76,7 +76,11 @@ interface NavitiaJourneysResponse {
 
 // --- Result type for getAndDisplayTrainJourneys ---
 interface TrainJourneysResult {
-    data?: Journey[];
+    fromStationId: string;
+    toStationId: string;
+    queryTime: string; // ISO string for when the query was initiated
+    requestedApiDepartureTime: string | null; // ISO string for the datetime parameter sent to Navitia API
+    journeys?: Journey[];
     message?: string; // For informational messages like "no journeys found"
     error?: {
         type: string;
@@ -131,8 +135,15 @@ function formatTime(date: Date): string {
 
 // --- Main Function to Get and Display Train Journeys ---
 async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
+    const queryInitiationTime = new Date();
+    let requestedApiDepartureTimeISO: string | null = null;
+
     if (!API_KEY) {
         return {
+            fromStationId: FROM_STATION_ID,
+            toStationId: TO_STATION_ID,
+            queryTime: queryInitiationTime.toISOString(),
+            requestedApiDepartureTime: null, // API call not prepared due to config error
             error: {
                 type: "CONFIGURATION_ERROR",
                 message: "NAVITIA_API_KEY is not set in your .env file or environment variables. Please create a .env file with NAVITIA_API_KEY=YOUR_KEY or set it as an environment variable."
@@ -140,9 +151,10 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
         };
     }
 
-    const now = new Date();
+    const now = new Date(); // This 'now' is for the departure window and API datetime parameter
     const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
     const currentDateTimeForAPI = toNavitiaDateTime(now);
+    requestedApiDepartureTimeISO = parseNavitiaDateTime(currentDateTimeForAPI).toISOString();
 
     // Construct URL with query parameters for fetch
     const params = new URLSearchParams({
@@ -181,6 +193,10 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
                 errorBody += ` - ${response.statusText}`;
             }
             return {
+                fromStationId: FROM_STATION_ID,
+                toStationId: TO_STATION_ID,
+                queryTime: queryInitiationTime.toISOString(),
+                requestedApiDepartureTime: requestedApiDepartureTimeISO,
                 error: {
                     type: "API_REQUEST_FAILED",
                     message: `API request failed: ${errorBody}`
@@ -192,6 +208,10 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
 
         if (responseData.error) {
             return {
+                fromStationId: FROM_STATION_ID,
+                toStationId: TO_STATION_ID,
+                queryTime: queryInitiationTime.toISOString(),
+                requestedApiDepartureTime: requestedApiDepartureTimeISO,
                 error: {
                     type: "NAVITIA_API_ERROR",
                     message: `API Error: ${responseData.error.id} - ${responseData.error.message}`
@@ -220,7 +240,14 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
         }
 
         if (validTrainJourneys.length === 0) {
-            return { data: [], message: "No train journeys found departing in the next hour matching criteria." };
+            return {
+                fromStationId: FROM_STATION_ID,
+                toStationId: TO_STATION_ID,
+                queryTime: queryInitiationTime.toISOString(),
+                requestedApiDepartureTime: requestedApiDepartureTimeISO,
+                journeys: [],
+                message: "No train journeys found departing in the next hour matching criteria."
+            };
         }
 
         validTrainJourneys.sort((a, b) => {
@@ -229,12 +256,22 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
             return arrivalA - arrivalB;
         });
 
-        return { data: validTrainJourneys };
+        return {
+            fromStationId: FROM_STATION_ID,
+            toStationId: TO_STATION_ID,
+            queryTime: queryInitiationTime.toISOString(),
+            requestedApiDepartureTime: requestedApiDepartureTimeISO,
+            journeys: validTrainJourneys
+        };
 
     } catch (error) {
         // This catches errors from synchronous code before/after fetch, or if fetch itself throws unexpectedly.
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
         return {
+            fromStationId: FROM_STATION_ID,
+            toStationId: TO_STATION_ID,
+            queryTime: queryInitiationTime.toISOString(),
+            requestedApiDepartureTime: requestedApiDepartureTimeISO, // Will be null if error occurred before its assignment
             error: {
                 type: "UNEXPECTED_ERROR_IN_FUNCTION",
                 message: errorMessage,
