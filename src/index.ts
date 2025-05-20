@@ -82,11 +82,7 @@ interface TrainJourneysResult {
     requestedApiDepartureTime: string | null; // ISO string for the datetime parameter sent to Navitia API
     journeys?: Journey[];
     message?: string; // For informational messages like "no journeys found"
-    error?: {
-        type: string;
-        message: string;
-        details?: any;
-    };
+    // Error field is removed as errors will be thrown
 }
 
 // --- Helper Functions (same as before) ---
@@ -166,16 +162,7 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
     let requestedApiDepartureTimeISO: string | null = null;
 
     if (!API_KEY) {
-        return {
-            fromStationId: FROM_STATION_ID,
-            toStationId: TO_STATION_ID,
-            queryTime: queryInitiationTime.toISOString(),
-            requestedApiDepartureTime: null, // API call not prepared due to config error
-            error: {
-                type: "CONFIGURATION_ERROR",
-                message: "NAVITIA_API_KEY is not set in your .env file or environment variables. Please create a .env file with NAVITIA_API_KEY=YOUR_KEY or set it as an environment variable."
-            }
-        };
+        throw new Error("Configuration Error: NAVITIA_API_KEY is not set in your .env file or environment variables. Please create a .env file with NAVITIA_API_KEY=YOUR_KEY or set it as an environment variable.");
     }
 
     const now = new Date(); // This 'now' is for the departure window and API datetime parameter
@@ -200,31 +187,13 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
                 // If parsing error body fails, just use the status text
                 errorBody += ` - ${response.statusText}`;
             }
-            return {
-                fromStationId: FROM_STATION_ID,
-                toStationId: TO_STATION_ID,
-                queryTime: queryInitiationTime.toISOString(),
-                requestedApiDepartureTime: requestedApiDepartureTimeISO,
-                error: {
-                    type: "API_REQUEST_FAILED",
-                    message: `API request failed: ${errorBody}`
-                }
-            };
+            throw new Error(`API Request Failed: ${errorBody}`);
         }
 
         const responseData = await response.json() as NavitiaJourneysResponse; // Type assertion
 
         if (responseData.error) {
-            return {
-                fromStationId: FROM_STATION_ID,
-                toStationId: TO_STATION_ID,
-                queryTime: queryInitiationTime.toISOString(),
-                requestedApiDepartureTime: requestedApiDepartureTimeISO,
-                error: {
-                    type: "NAVITIA_API_ERROR",
-                    message: `API Error: ${responseData.error.id} - ${responseData.error.message}`
-                }
-            };
+            throw new Error(`Navitia API Error: ${responseData.error.id} - ${responseData.error.message}`);
         }
         
         const validTrainJourneys: Journey[] = [];
@@ -273,19 +242,16 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
         };
 
     } catch (error) {
-        // This catches errors from synchronous code before/after fetch, or if fetch itself throws unexpectedly.
-        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-        return {
-            fromStationId: FROM_STATION_ID,
-            toStationId: TO_STATION_ID,
-            queryTime: queryInitiationTime.toISOString(),
-            requestedApiDepartureTime: requestedApiDepartureTimeISO, // Will be null if error occurred before its assignment
-            error: {
-                type: "UNEXPECTED_ERROR_IN_FUNCTION",
-                message: errorMessage,
-                details: !(error instanceof Error) ? error : undefined
-            }
-        };
+        // This catches errors from synchronous code within the try block,
+        // or if callNavitia or response.json() throws an error that isn't an HTTP error.
+        // Re-throw the error to be handled by the caller.
+        if (error instanceof Error) {
+            // Optionally enrich the error or just re-throw
+            // For example: error.message = `Error during train journey processing: ${error.message}`;
+            throw error; 
+        }
+        // If it's not an Error instance, wrap it in a new Error.
+        throw new Error(`An unexpected issue occurred: ${String(error)}`);
     }
 }
 
@@ -294,9 +260,15 @@ async function getAndDisplayTrainJourneys(): Promise<TrainJourneysResult> {
 // If using an older version, you might need a polyfill like 'node-fetch'.
 getAndDisplayTrainJourneys().then(result => {
     console.log(JSON.stringify(result, null, 2));
-}).catch(err => {
-    // This catch is a safeguard for unhandled promise rejections from getAndDisplayTrainJourneys itself.
-    console.error("Unhandled error calling getAndDisplayTrainJourneys:", JSON.stringify(err, null, 2));
+}).catch(error => {
+    console.error("❌ An error occurred while fetching train journeys:");
+    if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+        // For more detailed debugging, you might want to log the stack trace
+        // console.error(`Stack: ${error.stack}`);
+    } else {
+        console.error("An unexpected error object was thrown:", error);
+    }
 });
 
 // To run this script:
