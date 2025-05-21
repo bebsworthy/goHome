@@ -1,13 +1,21 @@
 {
-  "name": "goHome",
+  "name": "gohome",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "test:unit": "pnpm -r test:unit",
+    "test:integration": "pnpm -r test:integration",
+    "test:all": "pnpm -r test:all"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.11.0"
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "dotenv": "^16.4.5",
+    "vitest": "^1.4.0"
+  }
 }

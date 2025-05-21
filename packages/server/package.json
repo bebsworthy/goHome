@@ -1,18 +1,27 @@
 {
-  "name": "@goHome/server",
+  "name": "@gohome/server",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:unit": "vitest run test/unit/",
+    "test:integration": "vitest run test/integration/",
+    "test:all": "vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.2",
-    "hono": "^4.7.10"
+    "@hono/zod-validator": "^0.5.0",
+    "dotenv": "^16.5.0",
+    "hono": "^4.7.10",
+    "zod": "^3.25.17"
   },
   "devDependencies": {
+    "@types/dotenv": "^8.2.3",
     "@types/node": "^20.11.17",
     "tsx": "^4.7.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
   }
 }
