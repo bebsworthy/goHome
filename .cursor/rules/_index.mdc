@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor Rules Index
+
+This document provides an overview of all Cursor rules available in the project. Each rule is documented in its own `.mdc` file in the `.cursor/rules` directory.
+
+## Available Rules
+
+### [cursor-rules.mdc](mdc:cursor-rules.mdc)
+How to add or edit Cursor rules in our project. Contains guidelines for:
+- Rule file location and naming conventions
+- Directory structure requirements
+- Rule file format and structure
+
+### [installing-packages.mdc](mdc:installing-packages.mdc)
+Instructions for installing packages in the project.
+
+### [project-structure.mdc](mdc:project-structure.mdc)
+Project structure and file organization guidelines.
