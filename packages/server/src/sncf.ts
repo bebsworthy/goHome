@@ -189,6 +189,7 @@ export async function findEarliestArrivingJourneys(
     toStationId: string,
     now: Date = new Date()
 ): Promise<JourneyDisplay[]> {
+    console.log("findEarliest",fromStationId, toStationId, now);
     let requestedApiDepartureTimeISO: string | null = null;
 
     try {
