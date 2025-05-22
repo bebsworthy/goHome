@@ -1,8 +1,13 @@
 {
-  "name": "React PWA",
-  "short_name": "reactpwa",
-  "description": "Starter kit for modern web applications",
-  "theme_color": "#ffffff",
+  "name": "GoHome - SNCF Train Finder",
+  "short_name": "GoHome",
+  "description": "Find your way home with fast SNCF train searches",
+  "theme_color": "#0088ce",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "pwa-192x192.png",

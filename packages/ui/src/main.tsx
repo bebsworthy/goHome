@@ -1,4 +1,5 @@
 import welcome from '@/utils/welcome';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 import './index.css';
 
@@ -16,3 +17,14 @@ Promise.all([import('@/root'), import('@/App')]).then(([{ default: render }, { d
 
 // welcome message for users in the console
 welcome();
+
+// Register service worker for PWA support
+serviceWorkerRegistration.register({
+  onUpdate: () => {
+    console.log('New version available!');
+    // The update notification will be handled by the PWAUpdateNotification component
+  },
+  onSuccess: () => {
+    console.log('Content is now available offline!');
+  }
+});
