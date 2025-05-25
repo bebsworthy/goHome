@@ -1,10 +1,11 @@
-import { Container, Box } from '@mui/material';
-import SearchForm from '../../components/SearchForm';
+import { Box, Container } from '@mui/material';
+
 import JourneyResults from '../../components/JourneyResults';
+import SearchForm from '../../components/SearchForm';
 
 /**
  * Home Page Component
- * 
+ *
  * The main landing page of the GoHome application.
  * Displays the search form and handles loading of last search from localStorage.
  */

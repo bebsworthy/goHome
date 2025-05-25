@@ -50,20 +50,20 @@ export const destinationStationAtom = atom<Station | null>(null);
 export const journeyResultsAtom = atom<Journey[] | null>(null);
 export const isLoadingAtom = atom<boolean>(false);
 export const errorAtom = atom<string | null>(null);
-export const lastSearchAtom = atom<{ origin: Station; destination: Station; timestamp?: string } | null>(null);
+export const lastSearchAtom = atom<{
+  origin: Station;
+  destination: Station;
+  timestamp?: string;
+} | null>(null);
 export const stationListAtom = atom<Station[] | null>(null);
 
 // Derived atoms
-export const journeySearchAtom = atom(
-  (get) => ({
-    origin: get(originStationAtom),
-    destination: get(destinationStationAtom),
-  })
-);
+export const journeySearchAtom = atom((get) => ({
+  origin: get(originStationAtom),
+  destination: get(destinationStationAtom),
+}));
 
-export const hasValidSearchAtom = atom(
-  (get) => {
-    const { origin, destination } = get(journeySearchAtom);
-    return origin !== null && destination !== null && origin !== destination;
-  }
-);
+export const hasValidSearchAtom = atom((get) => {
+  const { origin, destination } = get(journeySearchAtom);
+  return origin !== null && destination !== null && origin !== destination;
+});

@@ -1,4 +1,4 @@
-import { Station, Journey } from '../config/state';
+import { Journey, Station } from '../config/state';
 
 /**
  * SNCF API Service
@@ -25,7 +25,7 @@ export class SNCFApiService {
    */
   private getHeaders(): HeadersInit {
     return {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
     };
   }
@@ -40,38 +40,40 @@ export class SNCFApiService {
     if (query.length < 2) {
       return [];
     }
-    
+
     try {
       console.log(`[API] Searching stations with query: "${query}"`);
       const headers = this.getHeaders();
       const url = `${this.BASE_URL}/stations?q=${encodeURIComponent(query)}`;
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers,
       });
-      
+
       if (!response.ok) {
         console.error(`[API] Error response: ${response.status} ${response.statusText}`);
-        
+
         // Check if it's a JSON response with error details
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const errorData = await response.json();
-          
+
           // Handle rate limit error
           if (response.status === 429 || errorData.code === 'RATE_LIMIT_EXCEEDED') {
-            throw new Error(errorData.message || 'Rate limit exceeded. Please try again in a few moments.');
+            throw new Error(
+              errorData.message || 'Rate limit exceeded. Please try again in a few moments.',
+            );
           }
-          
+
           // Handle other API errors
           throw new Error(errorData.message || `Error: ${response.statusText}`);
         }
-        
+
         // Generic error for non-JSON responses
         throw new Error(`Failed to fetch stations: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log(`[API] Received ${data.length || 0} stations`);
       return data;
@@ -80,7 +82,7 @@ export class SNCFApiService {
       throw error;
     }
   }
-  
+
   /**
    * Fetch all available stations
    * This is a convenience method that fetches a large set of stations
@@ -89,7 +91,7 @@ export class SNCFApiService {
    */
   async fetchStations(): Promise<Station[]> {
     console.log('[API] Fetching all stations');
-    
+
     try {
       // Use a broad search query to get many stations
       // In a real app, you might want to implement pagination or
@@ -114,53 +116,55 @@ export class SNCFApiService {
   async searchJourneys(
     originId: string,
     destinationId: string,
-    dateTime?: Date
+    dateTime?: Date,
   ): Promise<Journey[]> {
     console.log(`[API] Searching journeys from ${originId} to ${destinationId}`);
-    
+
     try {
       const headers = this.getHeaders();
       const queryParams = new URLSearchParams({
         from: originId,
         to: destinationId,
       });
-      
+
       // Add dateTime parameter if provided
       if (dateTime) {
         queryParams.append('datetime', dateTime.toISOString());
       }
-      
+
       const url = `${this.BASE_URL}/train-journeys?${queryParams.toString()}`;
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers,
       });
-      
+
       if (!response.ok) {
         console.error(`[API] Error response: ${response.status} ${response.statusText}`);
-        
+
         // Check if it's a JSON response with error details
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const errorData = await response.json();
-          
+
           // Handle rate limit error
           if (response.status === 429 || errorData.code === 'RATE_LIMIT_EXCEEDED') {
-            throw new Error(errorData.message || 'Rate limit exceeded. Please try again in a few moments.');
+            throw new Error(
+              errorData.message || 'Rate limit exceeded. Please try again in a few moments.',
+            );
           }
-          
+
           // Handle other API errors
           throw new Error(errorData.message || `Error: ${response.statusText}`);
         }
-        
+
         // Generic error for non-JSON responses
         throw new Error(`Failed to fetch journeys: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log(`[API] Received ${data.length || 0} journeys`);
-      
+
       // Convert string dates to Date objects
       const journeys = data.map((journey: any) => ({
         ...journey,
@@ -169,10 +173,10 @@ export class SNCFApiService {
         sections: journey.sections.map((section: any) => ({
           ...section,
           departureTime: new Date(section.departureTime),
-          arrivalTime: new Date(section.arrivalTime)
-        }))
+          arrivalTime: new Date(section.arrivalTime),
+        })),
       }));
-      
+
       return journeys;
     } catch (error) {
       console.error('[API] Error searching journeys:', error);

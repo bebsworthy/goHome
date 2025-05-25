@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { Autocomplete, TextField, CircularProgress, Box, Typography } from '@mui/material';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
 import { debounce } from '@mui/material/utils';
+
 import { Station } from '../config/state';
 import { indexedDBService } from '../utils/indexedDB';
 import { sncfApiService } from '../utils/sncfApi';
@@ -19,10 +21,10 @@ interface StationAutocompleteProps {
 
 /**
  * Station Autocomplete Component
- * 
+ *
  * A reusable component for station input fields that provides autocomplete
  * suggestions based on the cached SNCF station list.
- * 
+ *
  * Features:
  * - Fast response time (<200ms)
  * - Keyboard navigation support
@@ -48,7 +50,7 @@ export default function StationAutocomplete({
 
   // Track the last query to prevent duplicate API calls
   const lastQueryRef = useRef<string>('');
-  
+
   // Debounced function to search stations by name
   const searchStations = useMemo(
     () =>
@@ -60,17 +62,17 @@ export default function StationAutocomplete({
           setErrorMessage(null); // Clear any previous errors
           return;
         }
-        
+
         // Update last query reference
         lastQueryRef.current = query;
-        
+
         setLoading(true);
         setErrorMessage(null); // Clear any previous errors
-        
+
         try {
           // First try to search stations in IndexedDB
           let results = await indexedDBService.searchStationsByName(query);
-          
+
           // If we have results from IndexedDB, use them and don't call the API
           if (results && results.length > 0) {
             console.log(`Found ${results.length} results in IndexedDB for "${query}"`);
@@ -78,12 +80,12 @@ export default function StationAutocomplete({
             setLoading(false);
             return;
           }
-          
+
           // Only call the API if we don't have results from IndexedDB
           console.log('No results in IndexedDB, trying API...');
           try {
             results = await sncfApiService.searchStations(query);
-            
+
             // If we got results from the API, cache them in IndexedDB for future use
             if (results && results.length > 0) {
               console.log(`Caching ${results.length} stations from API to IndexedDB...`);
@@ -93,20 +95,25 @@ export default function StationAutocomplete({
                 console.error('Error caching stations:', cacheError);
               }
             }
-            
+
             setOptions(results || []);
           } catch (apiError) {
             console.error('API Error searching stations:', apiError);
-            
+
             // Check for rate limit error
-            if (apiError instanceof Error && 
-                (apiError.message.includes('Rate limit') || apiError.message.includes('429'))) {
+            if (
+              apiError instanceof Error &&
+              (apiError.message.includes('Rate limit') || apiError.message.includes('429'))
+            ) {
               setErrorMessage('Rate limit exceeded. Please try again in a few moments.');
             } else {
-              setErrorMessage(apiError instanceof Error ? 
-                apiError.message : 'Error searching stations. Please try again.');
+              setErrorMessage(
+                apiError instanceof Error
+                  ? apiError.message
+                  : 'Error searching stations. Please try again.',
+              );
             }
-            
+
             setOptions([]);
           }
         } catch (error) {
@@ -117,27 +124,27 @@ export default function StationAutocomplete({
           setLoading(false);
         }
       }, 300), // Increased debounce time to reduce API calls
-    []
+    [],
   );
 
   // Track previous input value to prevent redundant searches
   const prevInputRef = useRef<string>('');
-  
+
   // Update options when input value changes
   useEffect(() => {
     // Don't search if the autocomplete is closed or input is too short
     if (!open || inputValue.length < 2) {
       return;
     }
-    
+
     // Don't search if the input hasn't changed
     if (inputValue === prevInputRef.current) {
       return;
     }
-    
+
     // Update previous input reference
     prevInputRef.current = inputValue;
-    
+
     console.log(`[Autocomplete] Searching for "${inputValue}"`);
     searchStations(inputValue);
 
@@ -176,11 +183,7 @@ export default function StationAutocomplete({
       loading={loading}
       disabled={disabled}
       filterOptions={(x) => x} // Disable built-in filtering as we're doing it server-side
-      noOptionsText={
-        inputValue.length < 2
-          ? 'Type at least 2 characters'
-          : 'No stations found'
-      }
+      noOptionsText={inputValue.length < 2 ? 'Type at least 2 characters' : 'No stations found'}
       renderOption={(props, option) => (
         <Box component="li" {...props}>
           <Typography variant="body1">{option.name}</Typography>

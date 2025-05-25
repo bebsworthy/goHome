@@ -1,5 +1,6 @@
+import { IDBPDatabase, openDB } from 'idb';
+
 import { Station } from '../config/state';
-import { openDB, IDBPDatabase } from 'idb';
 
 // Database configuration
 const DB_NAME = 'stations-db';
@@ -20,7 +21,7 @@ export class IndexedDBService {
           store.createIndex('name', 'name', { unique: false });
           store.createIndex('code', 'code', { unique: true });
         }
-      }
+      },
     });
   }
 

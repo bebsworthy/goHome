@@ -2,12 +2,11 @@
 // See https://developers.google.com/web/tools/workbox/modules
 // for the list of available Workbox modules, or add any other
 // code you'd like.
-
 import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
+import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate, NetworkFirst, CacheFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 
 // TypeScript definitions for service workers
 declare const self: ServiceWorkerGlobalScope & {
@@ -39,7 +38,7 @@ registerRoute(
     // Return true to signal that we want to use the handler.
     return true;
   },
-  createHandlerBoundToURL('/index.html')
+  createHandlerBoundToURL('/index.html'),
 );
 
 // Cache the Google Fonts stylesheets with a stale-while-revalidate strategy.
@@ -47,7 +46,7 @@ registerRoute(
   ({ url }) => url.origin === 'https://fonts.googleapis.com',
   new StaleWhileRevalidate({
     cacheName: 'google-fonts-stylesheets',
-  })
+  }),
 );
 
 // Cache the underlying font files with a cache-first strategy for 1 year.
@@ -61,7 +60,7 @@ registerRoute(
         maxEntries: 30,
       }),
     ],
-  })
+  }),
 );
 
 // Cache images with a cache-first strategy
@@ -75,7 +74,7 @@ registerRoute(
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
       }),
     ],
-  })
+  }),
 );
 
 // Cache station data with a cache-first strategy since we're already
@@ -90,7 +89,7 @@ registerRoute(
         maxAgeSeconds: 24 * 60 * 60, // 24 hours
       }),
     ],
-  })
+  }),
 );
 
 // Cache journey search results with a network-first strategy
@@ -106,7 +105,7 @@ registerRoute(
         maxAgeSeconds: 60 * 60, // 1 hour
       }),
     ],
-  })
+  }),
 );
 
 // This allows the web app to trigger skipWaiting via

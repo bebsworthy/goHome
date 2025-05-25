@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Button, Snackbar, Alert } from '@mui/material';
+
+import { Alert, Button, Snackbar } from '@mui/material';
+
 import { applyUpdates } from '../serviceWorkerRegistration';
 
 /**
@@ -37,18 +39,11 @@ export default function PWAUpdateNotification() {
   };
 
   return (
-    <Snackbar
-      open={open}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-    >
-      <Alert 
+    <Snackbar open={open} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+      <Alert
         severity="info"
         action={
-          <Button 
-            color="inherit" 
-            size="small" 
-            onClick={handleUpdate}
-          >
+          <Button color="inherit" size="small" onClick={handleUpdate}>
             UPDATE
           </Button>
         }

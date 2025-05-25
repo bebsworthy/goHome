@@ -1,4 +1,4 @@
-import { Station, Journey } from '../config/state';
+import { Journey, Station } from '../config/state';
 
 /**
  * LocalStorage service for persisting user preferences and last search
@@ -24,14 +24,18 @@ export class LocalStorageService {
    * Save the parameters of the last successful journey search
    * @param searchParams Object containing origin and destination stations and timestamp
    */
-  saveLastSearch(searchParams: { origin: Station; destination: Station; timestamp?: string }): void {
+  saveLastSearch(searchParams: {
+    origin: Station;
+    destination: Station;
+    timestamp?: string;
+  }): void {
     try {
       localStorage.setItem(this.LAST_SEARCH_KEY, JSON.stringify(searchParams));
     } catch (error) {
       console.error('Failed to save last search to localStorage:', error);
     }
   }
-  
+
   /**
    * Save the results of the last successful journey search
    * @param journeys Array of journey results
@@ -39,17 +43,17 @@ export class LocalStorageService {
   saveLastResults(journeys: Journey[]): void {
     try {
       // Convert Date objects to ISO strings for proper serialization
-      const serializedJourneys = journeys.map(journey => ({
+      const serializedJourneys = journeys.map((journey) => ({
         ...journey,
         departureTime: journey.departureTime.toISOString(),
         arrivalTime: journey.arrivalTime.toISOString(),
-        sections: journey.sections.map(section => ({
+        sections: journey.sections.map((section) => ({
           ...section,
           departureTime: section.departureTime.toISOString(),
-          arrivalTime: section.arrivalTime.toISOString()
-        }))
+          arrivalTime: section.arrivalTime.toISOString(),
+        })),
       }));
-      
+
       localStorage.setItem(this.LAST_RESULTS_KEY, JSON.stringify(serializedJourneys));
     } catch (error) {
       console.error('Failed to save journey results to localStorage:', error);
@@ -79,7 +83,7 @@ export class LocalStorageService {
     try {
       const lastResults = localStorage.getItem(this.LAST_RESULTS_KEY);
       if (!lastResults) return null;
-      
+
       // Convert ISO strings back to Date objects
       const parsedResults = JSON.parse(lastResults);
       return parsedResults.map((journey: any) => ({
@@ -89,15 +93,15 @@ export class LocalStorageService {
         sections: journey.sections.map((section: any) => ({
           ...section,
           departureTime: new Date(section.departureTime),
-          arrivalTime: new Date(section.arrivalTime)
-        }))
+          arrivalTime: new Date(section.arrivalTime),
+        })),
       }));
     } catch (error) {
       console.error('Failed to retrieve journey results from localStorage:', error);
       return null;
     }
   }
-  
+
   /**
    * Clear the last search from localStorage
    */

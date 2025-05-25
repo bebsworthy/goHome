@@ -1,26 +1,27 @@
-import { useEffect, useCallback } from 'react';
-import { useDebounce } from 'use-debounce';
-import { 
-  Box, 
-  Button, 
-  Paper, 
-  Typography, 
+import { useCallback } from 'react';
+
+import ClearIcon from '@mui/icons-material/Clear';
+import HistoryIcon from '@mui/icons-material/History';
+import SearchIcon from '@mui/icons-material/Search';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import {
+  Box,
+  Button,
+  Chip,
   Grid,
   IconButton,
+  Paper,
+  Stack,
   Tooltip,
-  Chip,
-  Stack
+  Typography,
 } from '@mui/material';
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import SearchIcon from '@mui/icons-material/Search';
-import HistoryIcon from '@mui/icons-material/History';
-import ClearIcon from '@mui/icons-material/Clear';
-import StationAutocomplete from './StationAutocomplete';
+
 import { useJourneyQuery } from '../hooks/useJourneyQuery';
+import StationAutocomplete from './StationAutocomplete';
 
 /**
  * Search Form Component
- * 
+ *
  * A form for searching train journeys between stations.
  * Uses the StationAutocomplete component for station selection.
  */
@@ -37,13 +38,13 @@ export default function SearchForm() {
     searchJourneys,
     swapStations,
     clearSavedSearch,
-    isUsingSavedData
+    isUsingSavedData,
   } = useJourneyQuery();
 
   // Function to handle search submission
   const handleSearch = useCallback(() => {
     if (!hasValidSearch || isLoading || !origin || !destination) return;
-    
+
     // Perform the search with force refresh
     searchJourneys(origin, destination, true);
   }, [hasValidSearch, isLoading, origin, destination, searchJourneys]);
@@ -54,13 +55,13 @@ export default function SearchForm() {
   }, [clearSavedSearch]);
 
   return (
-    <Paper 
-      elevation={3} 
-      sx={{ 
-        p: 3, 
+    <Paper
+      elevation={3}
+      sx={{
+        p: 3,
         mb: 3,
         borderRadius: 2,
-        backgroundColor: (theme) => theme.palette.background.paper
+        backgroundColor: (theme) => theme.palette.background.paper,
       }}
     >
       {isUsingSavedData && lastSearch && (
@@ -85,11 +86,11 @@ export default function SearchForm() {
           </Stack>
         </Box>
       )}
-      
+
       <Typography variant="h5" component="h2" gutterBottom>
         Find Your Train
       </Typography>
-      
+
       <Grid container spacing={2} alignItems="center">
         <Grid item xs={12} md={5}>
           <StationAutocomplete
@@ -101,10 +102,10 @@ export default function SearchForm() {
             testId="origin-station"
           />
         </Grid>
-        
+
         <Grid item xs={12} md={2} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Tooltip title="Swap stations">
-            <IconButton 
+            <IconButton
               onClick={swapStations}
               disabled={!origin && !destination}
               color="primary"
@@ -115,7 +116,7 @@ export default function SearchForm() {
             </IconButton>
           </Tooltip>
         </Grid>
-        
+
         <Grid item xs={12} md={5}>
           <StationAutocomplete
             label="To"
@@ -127,7 +128,7 @@ export default function SearchForm() {
           />
         </Grid>
       </Grid>
-      
+
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
         <Button
           variant="contained"

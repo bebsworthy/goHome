@@ -1,12 +1,10 @@
 // This optional code is used to register a service worker.
 // register() is not called by default.
-
 // This lets the app load faster on subsequent visits in production, and gives
 // it offline capabilities. However, it also means that developers (and users)
 // will only see deployed updates on subsequent visits to a page, after all the
 // existing tabs open on the page have been closed, since previously cached
 // resources are updated in the background.
-
 import { atom } from 'jotai';
 
 // Define atoms for PWA update state
@@ -21,7 +19,7 @@ export const pwaRegistrationAtom = atom<ServiceWorkerRegistration | null>(null);
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
     window.location.hostname === '[::1]' ||
-    window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
+    window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/),
 );
 
 type Config = {
@@ -36,7 +34,7 @@ export function register(config?: Config): void {
   if (import.meta.env.PROD || import.meta.env.DEV) {
     // The URL constructor is available in all browsers that support SW.
     const publicUrl = new URL(import.meta.env.BASE_URL, window.location.href);
-    
+
     // Our service worker won't work if PUBLIC_URL is on a different origin
     // from what our page is served on. This might happen if a CDN is used to
     // serve assets; see https://github.com/facebook/create-react-app/issues/2374
@@ -56,7 +54,7 @@ export function register(config?: Config): void {
         navigator.serviceWorker.ready.then(() => {
           console.log(
             'This web app is being served cache-first by a service ' +
-              'worker. To learn more, visit https://cra.link/PWA'
+              'worker. To learn more, visit https://cra.link/PWA',
           );
         });
       } else {
@@ -77,7 +75,7 @@ function registerValidSW(swUrl: string, config?: Config): void {
       // Store registration in atom for later use
       // Using a global variable as a workaround since we can't directly update the atom here
       window.__PWA_REGISTRATION = registration;
-      
+
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
         if (installingWorker == null) {
@@ -91,7 +89,7 @@ function registerValidSW(swUrl: string, config?: Config): void {
               // content until all client tabs are closed.
               console.log(
                 'New content is available and will be used when all ' +
-                  'tabs for this page are closed. See https://cra.link/PWA.'
+                  'tabs for this page are closed. See https://cra.link/PWA.',
               );
 
               // Set update available flag to true
@@ -172,7 +170,8 @@ export function checkForUpdates(): Promise<boolean> {
       return;
     }
 
-    registration.update()
+    registration
+      .update()
       .then(() => {
         if (registration.waiting) {
           resolve(true);

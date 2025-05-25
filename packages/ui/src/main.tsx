@@ -1,6 +1,6 @@
 import welcome from '@/utils/welcome';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import './index.css';
 
 // `root` contains the main dependencies and providers of the base app
@@ -26,5 +26,5 @@ serviceWorkerRegistration.register({
   },
   onSuccess: () => {
     console.log('Content is now available offline!');
-  }
+  },
 });

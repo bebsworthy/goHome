@@ -1,8 +1,8 @@
-import HomeIcon from '@mui/icons-material/Home';
-import TrainIcon from '@mui/icons-material/Train';
-import InfoIcon from '@mui/icons-material/Info';
 import HistoryIcon from '@mui/icons-material/History';
+import HomeIcon from '@mui/icons-material/Home';
+import InfoIcon from '@mui/icons-material/Info';
 import SettingsIcon from '@mui/icons-material/Settings';
+import TrainIcon from '@mui/icons-material/Train';
 
 import asyncComponentLoader from '@/utils/loader';
 
