@@ -39,21 +39,20 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      srcDir: 'src',
+      filename: 'service-worker.js',
       manifest,
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
-      // switch to "true" to enable sw on development
-      devOptions: { enabled: true },
+      devOptions: {
+        enabled: true,
+        type: 'module'
+      },
       registerType: 'autoUpdate',
-      strategies: 'injectManifest',
-      injectManifest: {
-        swSrc: './src/service-worker.ts',
-        swDest: 'dist/service-worker.js',
-        injectionPoint: 'self.__WB_MANIFEST',
-      },
-      workbox: { 
-        globPatterns: ['**/*.{js,css,html}', '**/*.{svg,png,jpg,gif}'],
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         cleanupOutdatedCaches: true,
-      },
+        sourcemap: true
+      }
     }),
   ],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },

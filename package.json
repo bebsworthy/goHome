@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "concurrently \"pnpm --filter @gohome/server dev\" \"pnpm --filter @goHome/ui dev\"",
     "dev:mock": "concurrently \"pnpm --filter @gohome/server dev:mock\" \"pnpm --filter @goHome/ui dev\"",
+    "build": "pnpm -r build",
     "test": "vitest",
     "test:unit": "pnpm -r test:unit",
     "test:integration": "pnpm -r test:integration",

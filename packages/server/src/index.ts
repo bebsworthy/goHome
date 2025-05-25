@@ -1,10 +1,15 @@
 // Load environment variables first
 import * as dotenv from 'dotenv';
+import { readFile } from 'fs/promises';
+import { join, relative } from 'path';
+import { lookup } from 'mime-types';
+import { fileURLToPath } from 'url';
 dotenv.config();
 
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 
@@ -30,7 +35,7 @@ const app = new Hono()
 // Add CORS middleware with detailed logging
 app.use('/*', async (c, next) => {
   console.log(`[SERVER] Received request: ${c.req.method} ${c.req.url}`);
-  console.log(`[SERVER] Request headers:`, Object.fromEntries(c.req.raw.headers.entries()));
+  // console.log(`[SERVER] Request headers:`, Object.fromEntries(c.req.raw.headers.entries()));
   
   // Apply CORS
   const corsMiddleware = cors({
@@ -45,15 +50,15 @@ app.use('/*', async (c, next) => {
   await corsMiddleware(c, next);
   
   console.log(`[SERVER] Response status: ${c.res.status}`);
-  console.log(`[SERVER] Response headers:`, Object.fromEntries(c.res.headers.entries()));
+  // console.log(`[SERVER] Response headers:`, Object.fromEntries(c.res.headers.entries()));
 })
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
-app.get('/api', (c) => {
-  return c.text('Hello Api!')
-})
+// Calculate paths for static file serving
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const absolutePublicDir = join(__dirname, '..', 'public');
+const publicDir = relative(process.cwd(), absolutePublicDir);
+console.log(`[SERVER] Absolute public dir: ${absolutePublicDir}`);
+console.log(`[SERVER] Relative public dir for serveStatic: ${publicDir}`);
 
 // Validation schema for train journey queries
 const trainJourneySchema = z.object({
@@ -138,6 +143,27 @@ app.get('/api/stations',
         code: 'INTERNAL_SERVER_ERROR'
       }, 500);
     }
+});
+
+// Serve static files for all non-API routes
+app.use('*', async (c, next) => {
+  // Skip if path starts with /api
+  if (c.req.path.startsWith('/api')) {
+    console.log(`[SERVER] Skipping static file serving for API route: ${c.req.path}`);
+    return next();
+  }
+
+  const staticHandler = serveStatic({
+    root: publicDir,
+    onFound(c) {
+      console.log(`[SERVER] Serving static file: ${c}`);
+    },
+    onNotFound(path, c) {
+      console.error(`[SERVER] File not found: ${path}`);
+    },
+  });
+  
+  return staticHandler(c, next);
 });
 
 serve({
