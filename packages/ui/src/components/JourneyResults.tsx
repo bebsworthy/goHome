@@ -129,18 +129,32 @@ const JourneySectionItem: React.FC<{ section: JourneySection }> = ({ section }) 
  * Journey Card Component
  * Displays a single journey option
  */
-const JourneyCard: React.FC<{ journey: Journey }> = ({ journey }) => {
+const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({ journey, isFastest = false }) => {
   return (
-    <Card sx={{ mb: 2 }}>
+    <Card sx={{ 
+      mb: 2,
+      border: isFastest ? '2px solid #4caf50' : 'none',
+      position: 'relative'
+    }}>
       <CardActionArea>
         <CardContent>
           <Grid container spacing={2}>
             {/* Journey Header */}
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="h6">
-                  {formatTime(journey.departureTime)} - {formatTime(journey.arrivalTime)}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="h6">
+                    {formatTime(journey.departureTime)} - {formatTime(journey.arrivalTime)}
+                  </Typography>
+                  {isFastest && (
+                    <Chip
+                      label="Earliest"
+                      color="success"
+                      size="small"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
                   <Typography variant="body2">
@@ -238,11 +252,27 @@ export default function JourneyResults() {
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Found {journeyResults.length} {journeyResults.length === 1 ? 'journey' : 'journeys'}
+                {' '}(sorted by earliest arrival)
               </Typography>
               <Stack spacing={2}>
-                {journeyResults.map((journey, index) => (
-                  <JourneyCard key={index} journey={journey} />
-                ))}
+                {/* Sort journeys by earliest arrival time and highlight the one that arrives first */}
+                {(() => {
+                  // Sort journeys by arrival time
+                  const sortedJourneys = [...journeyResults].sort(
+                    (a, b) => a.arrivalTime.getTime() - b.arrivalTime.getTime()
+                  );
+                  
+                  // The fastest journey is the one that arrives first (first in the sorted array)
+                  const fastestJourney = sortedJourneys.length > 0 ? sortedJourneys[0] : null;
+                  
+                  return sortedJourneys.map((journey, index) => (
+                    <JourneyCard 
+                      key={index} 
+                      journey={journey} 
+                      isFastest={Boolean(fastestJourney && journey.arrivalTime.getTime() === fastestJourney.arrivalTime.getTime())}
+                    />
+                  ));
+                })()}
               </Stack>
             </Box>
           )}
