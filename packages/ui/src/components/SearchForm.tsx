@@ -1,5 +1,7 @@
 // No useState needed here
 import { useAtom } from 'jotai';
+import { useEffect, useCallback } from 'react';
+import { useDebounce } from 'use-debounce';
 import { 
   Box, 
   Button, 
@@ -17,7 +19,8 @@ import {
   isLoadingAtom,
   hasValidSearchAtom,
   journeyResultsAtom,
-  lastSearchAtom
+  lastSearchAtom,
+  Station
 } from '../config/state';
 import StationAutocomplete from './StationAutocomplete';
 import { sncfApiService } from '../utils/sncfApi';
@@ -37,32 +40,26 @@ export default function SearchForm() {
   const [, setJourneyResults] = useAtom(journeyResultsAtom);
   const [, setLastSearch] = useAtom(lastSearchAtom);
   
-  // Function to swap origin and destination
-  const handleSwapStations = () => {
-    const tempOrigin = origin;
-    setOrigin(destination);
-    setDestination(tempOrigin);
-  };
-  
-  // Function to handle search submission
-  const handleSearch = async () => {
-    if (!hasValidSearch || isLoading) return;
+  // Helper function to search for journeys
+  const searchJourneys = async (from: Station, to: Station) => {
+    if (isLoading) return;
     
     try {
       setIsLoading(true);
       
       // Search for journeys
       const journeys = await sncfApiService.searchJourneys(
-        origin!.id,
-        destination!.id
+        from.id,
+        to.id
       );
       
       // Update journey results
       setJourneyResults(journeys);
       
-      // Save last search to localStorage and atom
-      const searchParams = { origin: origin!, destination: destination! };
+      // Save last search and results to localStorage and atom
+      const searchParams = { origin: from, destination: to };
       localStorageService.saveLastSearch(searchParams);
+      localStorageService.saveLastResults(journeys);
       setLastSearch(searchParams);
       
     } catch (error) {
@@ -72,6 +69,47 @@ export default function SearchForm() {
       setIsLoading(false);
     }
   };
+  
+  // Function to handle search submission
+  const handleSearch = () => {
+    if (!hasValidSearch || isLoading || !origin || !destination) return;
+    searchJourneys(origin, destination);
+  };
+  
+  // Function to swap origin and destination
+  const handleSwapStations = () => {
+    // Only proceed if we have both origin and destination
+    if (!origin || !destination) return;
+    
+    // Swap the stations
+    const newOrigin = destination;
+    const newDestination = origin;
+    setOrigin(newOrigin);
+    setDestination(newDestination);
+    
+    // The useEffect hook will automatically trigger a search when the values change
+  };
+  
+  // Create debounced versions of origin and destination
+  const [debouncedOrigin] = useDebounce(origin, 300);
+  const [debouncedDestination] = useDebounce(destination, 300);
+  
+  // Memoized search function to avoid recreating on every render
+  const debouncedSearch = useCallback(() => {
+    if (hasValidSearch && debouncedOrigin && debouncedDestination && !isLoading) {
+      searchJourneys(debouncedOrigin, debouncedDestination);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedOrigin, debouncedDestination, hasValidSearch, isLoading]);
+  
+  // Auto-search when debounced values change
+  useEffect(() => {
+    // Don't trigger on initial render when both are null
+    if (debouncedOrigin && debouncedDestination) {
+      debouncedSearch();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedOrigin, debouncedDestination]);
   
   return (
     <Paper 

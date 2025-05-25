@@ -1,132 +1,20 @@
+import type { 
+    Error, 
+    Coordinates, 
+    StopPoint, 
+    Location, 
+    DisplayInformation, 
+    Section, 
+    Journey, 
+    JourneySection, 
+    JourneyDisplay, 
+    SNCFJourneysResponse, 
+    Place, 
+    PlacesResponse, 
+    Station 
+} from './types.js';
+
 const COVERAGE = 'sncf';
-
-// --- Interfaces for SNCF API Response ---
-interface Error {
-    id: string;
-    message: string;
-}
-
-interface StopPoint {
-    id: string;
-    name: string;
-    label?: string;
-    coord?: Coordinates;
-}
-
-interface Location {
-    id?: string;
-    name?: string;
-    embedded_type?: string;
-    stop_point?: StopPoint;
-    stop_area?: {
-        id: string;
-        name: string;
-        coord: Coordinates;
-    };
-}
-
-interface DisplayInformation {
-    commercial_mode?: string;
-    physical_mode?: string;
-    network?: string;
-    direction?: string;
-    label?: string;
-    headsign?: string;
-    description?: string;
-    trip_short_name?: string;
-    text_color?: string;
-    color?: string;
-    code?: string;
-}
-
-interface Section {
-    id?: string;
-    type: string;
-    mode?: string;
-    duration?: number;
-    from: Location;
-    to: Location;
-    departure_date_time: string;
-    arrival_date_time: string;
-    display_informations?: DisplayInformation;
-}
-
-interface Journey {
-    departure_date_time: string;
-    arrival_date_time: string;
-    duration: number;
-    nb_transfers: number;
-    sections: Section[];
-}
-
-interface JourneyDisplay {
-    departureTime: Date;
-    arrivalTime: Date;
-    duration: number;
-    transfers: number;
-    sections: {
-        type: string;
-        mode?: string;
-        duration: number;
-        from: string;
-        fromId?: string;
-        to: string;
-        toId?: string;
-        departureTime: Date;
-        arrivalTime: Date;
-        // Display information fields
-        commercialMode?: string;
-        physicalMode?: string;
-        network?: string;
-        direction?: string;
-        label?: string;
-        headsign?: string;
-        description?: string;
-        tripShortName?: string;
-        textColor?: string;
-        color?: string;
-        code?: string;
-    }[];
-    requestedApiDepartureTime: string | null; // ISO string for the datetime parameter sent to SNCF API
-}
-
-interface SNCFJourneysResponse {
-    error?: Error;
-    journeys?: Journey[];
-}
-
-// Add these interfaces after the existing ones
-interface Coordinates {
-    lon: string;
-    lat: string;
-}
-
-export interface Place {
-    id: string;
-    name: string;
-    quality: number;
-    embedded_type: string;
-    administrative_regions: any[];
-    coord: Coordinates;
-    stop_area?: {
-        id: string;
-        name: string;
-        coord: Coordinates;
-    };
-}
-
-interface PlacesResponse {
-    places: Place[];
-}
-
-interface Station {
-    id: string;
-    name: string;
-    coordinates: {
-        longitude: number;
-        latitude: number;
-    };
-}
 
 // --- Helper Functions ---
 

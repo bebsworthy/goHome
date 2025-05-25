@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"pnpm --filter @gohome/server dev\" \"pnpm --filter @goHome/ui dev\"",
+    "dev:mock": "concurrently \"pnpm --filter @gohome/server dev:mock\" \"pnpm --filter @goHome/ui dev\"",
     "test": "vitest",
     "test:unit": "pnpm -r test:unit",
     "test:integration": "pnpm -r test:integration",
@@ -21,6 +22,7 @@
     "vitest": "^1.4.0"
   },
   "dependencies": {
-    "task-master-ai": "^0.14.0"
+    "task-master-ai": "^0.14.0",
+    "use-debounce": "^10.0.4"
   }
 }

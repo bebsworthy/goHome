@@ -7,7 +7,23 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
-import { SNCF, findEarliestArrivingJourneys, findStations } from './sncf.js';
+
+// Check for --mock flag in command line arguments
+const useMockApi = process.argv.includes('--mock');
+
+// Import either the real API or the mock API based on the flag
+let findEarliestArrivingJourneys, findStations;
+if (useMockApi) {
+  console.log('🔶 Using MOCK SNCF API - No API calls will be made to the real SNCF API');
+  const mockApi = await import('./sncf-mock.js');
+  findEarliestArrivingJourneys = mockApi.findEarliestArrivingJourneys;
+  findStations = mockApi.findStations;
+} else {
+  console.log('🔷 Using REAL SNCF API - API calls will be made to the actual SNCF API');
+  const realApi = await import('./sncf.js');
+  findEarliestArrivingJourneys = realApi.findEarliestArrivingJourneys;
+  findStations = realApi.findStations;
+}
 
 const app = new Hono()
 
@@ -128,5 +144,11 @@ serve({
   fetch: app.fetch,
   port: 3000
 }, (info) => {
-  console.log(`Server is running on http://localhost:${info.port}`)
+  console.log(`Server is running on http://localhost:${info.port}`);
+  console.log(`API Mode: ${useMockApi ? 'MOCK (offline development)' : 'REAL (production)'}`);
+  if (useMockApi) {
+    console.log('To use the real SNCF API, restart the server without the --mock flag');
+  } else {
+    console.log('To use the mock SNCF API, restart the server with the --mock flag');
+  }
 })
