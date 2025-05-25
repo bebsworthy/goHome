@@ -53,6 +53,36 @@ init_setup() {
     else
         warn "'proxy' network already exists"
     fi
+
+    # Create .env file if it doesn't exist
+    if [ ! -f .env ]; then
+        cat > .env << EOL
+SNCF_API_KEY=your-api-key-here
+SNCF_BASE_URL=https://api.sncf.com/v1/
+EOL
+        chmod 600 .env
+        info "Created .env file with default values"
+        warn "Please update SNCF_API_KEY in .env file"
+    fi
+}
+
+# Configure environment variables
+configure_env() {
+    local api_key=$1
+
+    if [ -z "$api_key" ]; then
+        error "SNCF API key is required"
+        echo "Usage: $0 configure-env your-api-key"
+        exit 1
+    fi
+
+    info "Configuring environment variables..."
+    
+    # Update .env file
+    sed -i.bak "s/SNCF_API_KEY=.*/SNCF_API_KEY=$api_key/" .env
+    
+    info "Environment variables updated"
+    info "SNCF API key has been set"
 }
 
 # Configure domain settings
@@ -82,6 +112,17 @@ configure_domain() {
 
 # Deploy the application
 deploy() {
+    # Check if .env exists and has required variables
+    if [ ! -f .env ]; then
+        error ".env file not found. Run './deploy.sh init' first"
+        exit 1
+    fi
+
+    if grep -q "your-api-key-here" .env; then
+        error "SNCF API key not configured. Run './deploy.sh configure-env your-api-key' first"
+        exit 1
+    fi
+
     info "Building and deploying the application..."
     docker compose pull
     docker compose up --build -d
@@ -136,6 +177,7 @@ show_help() {
     echo "Commands:"
     echo "  init                    Initialize required directories and files"
     echo "  configure DOMAIN EMAIL  Configure domain and email settings"
+    echo "  configure-env API_KEY   Configure SNCF API key"
     echo "  deploy                  Build and deploy the application"
     echo "  logs [SERVICE]         Show logs (optionally for a specific service)"
     echo "  stop                   Stop the application"
@@ -146,6 +188,7 @@ show_help() {
     echo "Examples:"
     echo "  $0 init"
     echo "  $0 configure example.com admin@example.com"
+    echo "  $0 configure-env your-sncf-api-key"
     echo "  $0 deploy"
     echo "  $0 logs"
     echo "  $0 logs gohome"
@@ -160,6 +203,9 @@ case "$1" in
         ;;
     configure)
         configure_domain "$2" "$3"
+        ;;
+    configure-env)
+        configure_env "$2"
         ;;
     deploy)
         check_docker

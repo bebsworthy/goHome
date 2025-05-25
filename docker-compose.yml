@@ -26,6 +26,9 @@ services:
   gohome:
     build: .
     restart: unless-stopped
+    environment:
+      - SNCF_API_KEY=${SNCF_API_KEY}
+      - SNCF_BASE_URL=${SNCF_BASE_URL}
     networks:
       - proxy
     labels:
