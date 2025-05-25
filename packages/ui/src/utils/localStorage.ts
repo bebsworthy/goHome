@@ -22,9 +22,9 @@ export class LocalStorageService {
 
   /**
    * Save the parameters of the last successful journey search
-   * @param searchParams Object containing origin and destination stations
+   * @param searchParams Object containing origin and destination stations and timestamp
    */
-  saveLastSearch(searchParams: { origin: Station; destination: Station }): void {
+  saveLastSearch(searchParams: { origin: Station; destination: Station; timestamp?: string }): void {
     try {
       localStorage.setItem(this.LAST_SEARCH_KEY, JSON.stringify(searchParams));
     } catch (error) {
@@ -60,7 +60,7 @@ export class LocalStorageService {
    * Retrieve the parameters of the last successful journey search
    * @returns The last search parameters or null if not found
    */
-  getLastSearch(): { origin: Station; destination: Station } | null {
+  getLastSearch(): { origin: Station; destination: Station; timestamp?: string } | null {
     try {
       const lastSearch = localStorage.getItem(this.LAST_SEARCH_KEY);
       if (!lastSearch) return null;

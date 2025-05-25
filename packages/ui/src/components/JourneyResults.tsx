@@ -29,6 +29,42 @@ import {
 } from '../config/state';
 
 /**
+ * Format a date as a human-readable "time ago" string
+ * @param date The date to format
+ * @returns A string like "2 minutes ago", "1 hour ago", etc.
+ */
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  // Less than a minute
+  if (seconds < 60) {
+    return 'just now';
+  }
+  
+  // Less than an hour
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
+  }
+  
+  // Less than a day
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  }
+  
+  // Less than a week
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+  }
+  
+  // Format as date for older timestamps
+  return date.toLocaleDateString();
+}
+
+/**
  * Format a date to display time in HH:MM format
  */
 const formatTime = (date: Date): string => {
@@ -55,12 +91,22 @@ const formatDuration = (durationInSeconds: number): string => {
 
 /**
  * Get a color for a transport mode
+ * Prioritizes color from API response, then falls back to predefined colors
  */
-const getModeColor = (mode?: string, commercialMode?: string): string => {
+const getModeColor = (mode?: string, commercialMode?: string, apiColor?: string): string => {
+  // First priority: use color from API if available
+  if (apiColor && apiColor.trim() !== '') {
+    // Ensure color has # prefix if it's a hex code without it
+    return apiColor.startsWith('#') ? apiColor : `#${apiColor}`;
+  }
+  
+  // Second priority: use our predefined mappings
   if (mode === 'walking') return '#8c9eff'; // Light blue
   if (commercialMode === 'NOMAD') return '#1976d2'; // Blue
   if (commercialMode === 'TGV') return '#d32f2f'; // Red
   if (commercialMode === 'TER') return '#388e3c'; // Green
+  
+  // Fallback
   return '#757575'; // Default gray
 };
 
@@ -69,7 +115,7 @@ const getModeColor = (mode?: string, commercialMode?: string): string => {
  * Displays a single section of a journey
  */
 const JourneySectionItem: React.FC<{ section: JourneySection }> = ({ section }) => {
-  const modeColor = getModeColor(section.mode, section.commercialMode);
+  const modeColor = getModeColor(section.mode, section.commercialMode, section.color);
   
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
@@ -213,15 +259,25 @@ export default function JourneyResults() {
       
       {/* Search Info */}
       {lastSearch && (
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Typography variant="body1" fontWeight="bold">
-            {lastSearch.origin.name}
-          </Typography>
-          <ArrowForwardIcon sx={{ mx: 1 }} />
-          <Typography variant="body1" fontWeight="bold">
-            {lastSearch.destination.name}
-          </Typography>
-        </Box>
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <Typography variant="body1" fontWeight="bold">
+              {lastSearch.origin.name}
+            </Typography>
+            <ArrowForwardIcon sx={{ mx: 1 }} />
+            <Typography variant="body1" fontWeight="bold">
+              {lastSearch.destination.name}
+            </Typography>
+          </Box>
+          {lastSearch.timestamp && (
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <AccessTimeIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+              <Typography variant="body2" color="text.secondary">
+                Last updated: {formatTimeAgo(new Date(lastSearch.timestamp))}
+              </Typography>
+            </Box>
+          )}
+        </>
       )}
       
       {/* Loading State */}
