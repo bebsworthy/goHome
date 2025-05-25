@@ -160,7 +160,20 @@ export class SNCFApiService {
       
       const data = await response.json();
       console.log(`[API] Received ${data.length || 0} journeys`);
-      return data;
+      
+      // Convert string dates to Date objects
+      const journeys = data.map((journey: any) => ({
+        ...journey,
+        departureTime: new Date(journey.departureTime),
+        arrivalTime: new Date(journey.arrivalTime),
+        sections: journey.sections.map((section: any) => ({
+          ...section,
+          departureTime: new Date(section.departureTime),
+          arrivalTime: new Date(section.arrivalTime)
+        }))
+      }));
+      
+      return journeys;
     } catch (error) {
       console.error('[API] Error searching journeys:', error);
       throw error;

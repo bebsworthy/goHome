@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SNCF } from '../../src/sncf.js';
+import { SNCF, findEarliestArrivingJourneys } from '../../src/sncf.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -105,6 +105,129 @@ describe('SNCF Module', () => {
       const response = await SNCF.journeys(fromId, toId, dateTime);
       expect(response.ok).toBe(false);
       expect(response.status).toBe(500);
+    });
+  });
+
+  describe('findEarliestArrivingJourneys', () => {
+    it('should correctly map display information fields from sections', async () => {
+      // Mock successful API response with display information
+      const mockJourneysResponse = {
+        journeys: [{
+          departure_date_time: '20250525T080000',
+          arrival_date_time: '20250525T084200',
+          duration: 2520,
+          nb_transfers: 0,
+          sections: [
+            {
+              type: 'crow_fly',
+              mode: 'walking',
+              duration: 0,
+              from: {
+                id: 'stop_area:SNCF:87384008',
+                name: 'Paris Saint-Lazare',
+                embedded_type: 'stop_area',
+                stop_area: {
+                  id: 'stop_area:SNCF:87384008',
+                  name: 'Paris Saint-Lazare',
+                  coord: { lon: '2.325331', lat: '48.876242' }
+                }
+              },
+              to: {
+                id: 'stop_point:SNCF:87384008:Train',
+                name: 'Paris Saint-Lazare',
+                embedded_type: 'stop_point',
+                stop_point: {
+                  id: 'stop_point:SNCF:87384008:Train',
+                  name: 'Paris Saint-Lazare'
+                }
+              },
+              departure_date_time: '20250525T080000',
+              arrival_date_time: '20250525T080000'
+            },
+            {
+              type: 'public_transport',
+              duration: 2520,
+              from: {
+                id: 'stop_point:SNCF:87384008:Train',
+                name: 'Paris Saint-Lazare',
+                embedded_type: 'stop_point',
+                stop_point: {
+                  id: 'stop_point:SNCF:87384008:Train',
+                  name: 'Paris Saint-Lazare'
+                }
+              },
+              to: {
+                id: 'stop_point:SNCF:87381509:Train',
+                name: 'Mantes-la-Jolie',
+                embedded_type: 'stop_point',
+                stop_point: {
+                  id: 'stop_point:SNCF:87381509:Train',
+                  name: 'Mantes-la-Jolie'
+                }
+              },
+              departure_date_time: '20250525T080000',
+              arrival_date_time: '20250525T084200',
+              display_informations: {
+                commercial_mode: 'NOMAD',
+                physical_mode: 'TER / Intercités',
+                network: 'NOMAD',
+                direction: 'Rouen Rive Droite',
+                label: 'C1',
+                headsign: '13111',
+                trip_short_name: '13111',
+                description: 'Train description',
+                code: 'C1',
+                color: '#FF0000',
+                text_color: '#FFFFFF'
+              }
+            }
+          ]
+        }]
+      };
+
+      // Mock the SNCF.journeys method
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockJourneysResponse)
+      });
+
+      // Call the function
+      const result = await findEarliestArrivingJourneys('stop_area:SNCF:87384008', 'stop_area:SNCF:87381509');
+
+      // Verify the result
+      expect(result).toHaveLength(1);
+      
+      // Check journey properties
+      const journey = result[0];
+      expect(journey.departureTime).toBeInstanceOf(Date);
+      expect(journey.arrivalTime).toBeInstanceOf(Date);
+      expect(journey.duration).toBe(2520);
+      expect(journey.transfers).toBe(0);
+      
+      // Check sections - walking sections should be filtered out
+      expect(journey.sections).toHaveLength(1); // Only the public_transport section should remain
+      
+      // Check public_transport section with display information
+      const ptSection = journey.sections[0]; // Now this should be the first and only section
+      expect(ptSection.type).toBe('public_transport');
+      expect(ptSection.duration).toBe(2520);
+      expect(ptSection.from).toBe('Paris Saint-Lazare');
+      expect(ptSection.fromId).toBe('stop_point:SNCF:87384008:Train');
+      expect(ptSection.to).toBe('Mantes-la-Jolie');
+      expect(ptSection.toId).toBe('stop_point:SNCF:87381509:Train');
+      
+      // Check display information fields
+      expect(ptSection.commercialMode).toBe('NOMAD');
+      expect(ptSection.physicalMode).toBe('TER / Intercités');
+      expect(ptSection.network).toBe('NOMAD');
+      expect(ptSection.direction).toBe('Rouen Rive Droite');
+      expect(ptSection.label).toBe('C1');
+      expect(ptSection.headsign).toBe('13111');
+      expect(ptSection.tripShortName).toBe('13111');
+      expect(ptSection.description).toBe('Train description');
+      expect(ptSection.code).toBe('C1');
+      expect(ptSection.color).toBe('#FF0000');
+      expect(ptSection.textColor).toBe('#FFFFFF');
     });
   });
 }); 

@@ -11,16 +11,37 @@ export interface Station {
   };
 }
 
+export interface JourneySection {
+  type: string;
+  mode?: string;
+  duration: number;
+  from: string;
+  fromId?: string;
+  to: string;
+  toId?: string;
+  departureTime: Date;
+  arrivalTime: Date;
+  // Display information fields
+  commercialMode?: string;
+  physicalMode?: string;
+  network?: string;
+  direction?: string;
+  label?: string;
+  headsign?: string;
+  description?: string;
+  tripShortName?: string;
+  textColor?: string;
+  color?: string;
+  code?: string;
+}
+
 export interface Journey {
-  id: string;
-  departureStation: Station;
-  arrivalStation: Station;
-  departureTime: string;
-  arrivalTime: string;
-  duration: string;
-  changes: number;
-  platform: string;
-  status: 'on-time' | 'delayed' | 'cancelled';
+  departureTime: Date;
+  arrivalTime: Date;
+  duration: number;
+  transfers: number;
+  sections: JourneySection[];
+  requestedApiDepartureTime?: string;
 }
 
 // State atoms

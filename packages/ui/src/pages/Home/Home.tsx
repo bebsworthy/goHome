@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { Container, Typography, Box } from '@mui/material';
-import SearchForm from '@/components/SearchForm';
+import { Container, Box } from '@mui/material';
+import SearchForm from '../../components/SearchForm';
+import JourneyResults from '../../components/JourneyResults';
 import { useAtom } from 'jotai';
-import { lastSearchAtom, originStationAtom, destinationStationAtom } from '@/config/state';
-import { localStorageService } from '@/utils/localStorage';
+import { lastSearchAtom, originStationAtom, destinationStationAtom } from '../../config/state';
+import { localStorageService } from '../../utils/localStorage';
 
 /**
  * Home Page Component
@@ -31,17 +32,10 @@ function Home() {
       <meta name="title" content="Home" />
       <Container maxWidth="md">
         <Box sx={{ my: 4, textAlign: 'center' }}>
-          <Typography variant="h3" component="h1" gutterBottom>
-            GoHome
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-            Find your way home with fast SNCF train searches
-          </Typography>
+          <SearchForm />
         </Box>
-        
-        <SearchForm />
-        
-        {/* Journey results will be displayed here in a future task */}
+
+        <JourneyResults />
       </Container>
     </>
   );

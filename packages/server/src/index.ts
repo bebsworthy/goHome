@@ -63,6 +63,7 @@ app.get('/api/train-journeys',
     
     try {
       const journeys = await findEarliestArrivingJourneys(fromStationId, toStationId);
+      console.log(`[SERVER] Found ${journeys.length} journeys`);
       return c.json(journeys);
     } catch (error) {
       console.error('[SERVER] Error fetching train journeys:', error);
@@ -100,6 +101,7 @@ app.get('/api/stations',
     
     try {
       const stations = await findStations(query);
+      console.log(`[SERVER] Found ${stations.length} stations`);
       return c.json(stations);
     } catch (error) {
       console.error('[SERVER] Error searching stations:', error);

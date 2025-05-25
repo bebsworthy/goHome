@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "concurrently \"pnpm --filter @gohome/server dev\" \"pnpm --filter @goHome/ui dev\"",
     "test": "vitest",
     "test:unit": "pnpm -r test:unit",
     "test:integration": "pnpm -r test:integration",
@@ -15,6 +16,7 @@
   "packageManager": "pnpm@10.11.0",
   "devDependencies": {
     "@types/jest": "^29.5.14",
+    "concurrently": "^9.1.2",
     "dotenv": "^16.4.5",
     "vitest": "^1.4.0"
   },

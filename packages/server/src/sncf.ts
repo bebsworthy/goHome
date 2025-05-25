@@ -6,20 +6,49 @@ interface Error {
     message: string;
 }
 
+interface StopPoint {
+    id: string;
+    name: string;
+    label?: string;
+    coord?: Coordinates;
+}
+
+interface Location {
+    id?: string;
+    name?: string;
+    embedded_type?: string;
+    stop_point?: StopPoint;
+    stop_area?: {
+        id: string;
+        name: string;
+        coord: Coordinates;
+    };
+}
+
+interface DisplayInformation {
+    commercial_mode?: string;
+    physical_mode?: string;
+    network?: string;
+    direction?: string;
+    label?: string;
+    headsign?: string;
+    description?: string;
+    trip_short_name?: string;
+    text_color?: string;
+    color?: string;
+    code?: string;
+}
+
 interface Section {
+    id?: string;
     type: string;
-    from: {
-        stop_point: {
-            name: string;
-        };
-    };
-    to: {
-        stop_point: {
-            name: string;
-        };
-    };
+    mode?: string;
+    duration?: number;
+    from: Location;
+    to: Location;
     departure_date_time: string;
     arrival_date_time: string;
+    display_informations?: DisplayInformation;
 }
 
 interface Journey {
@@ -37,10 +66,26 @@ interface JourneyDisplay {
     transfers: number;
     sections: {
         type: string;
+        mode?: string;
+        duration: number;
         from: string;
+        fromId?: string;
         to: string;
+        toId?: string;
         departureTime: Date;
         arrivalTime: Date;
+        // Display information fields
+        commercialMode?: string;
+        physicalMode?: string;
+        network?: string;
+        direction?: string;
+        label?: string;
+        headsign?: string;
+        description?: string;
+        tripShortName?: string;
+        textColor?: string;
+        color?: string;
+        code?: string;
     }[];
     requestedApiDepartureTime: string | null; // ISO string for the datetime parameter sent to SNCF API
 }
@@ -139,7 +184,9 @@ export namespace SNCF {
             from: fromStationId,
             to: toStationId,
             datetime: dateTime,
-            'data-freshness': 'realtime'
+            'datetime_represents': 'departure',
+            'data-freshness': 'realtime',
+            min_nb_journeys: "10"
         });
 
         const journeysUrl = `${baseUrl}/coverage/${COVERAGE}/journeys?${params.toString()}`;
@@ -221,6 +268,8 @@ export async function findEarliestArrivingJourneys(
             throw new Error(`SNCF API Error: ${responseData.error.id} - ${responseData.error.message}`);
         }
 
+        console.log(`[SERVER] Found ${ JSON.stringify(responseData.journeys, null, 2)} journeys`);
+
         // Transform journeys into display format
         const journeyDisplays: JourneyDisplay[] = (responseData.journeys || []).map(journey => {
             const journeyDepartureTime = parseSNCFDateTime(journey.departure_date_time);
@@ -230,13 +279,69 @@ export async function findEarliestArrivingJourneys(
                 arrivalTime: parseSNCFDateTime(journey.arrival_date_time),
                 duration: journey.duration,
                 transfers: journey.nb_transfers,
-                sections: journey.sections.map(section => ({
-                    type: section.type,
-                    from: section.from.stop_point.name,
-                    to: section.to.stop_point.name,
-                    departureTime: parseSNCFDateTime(section.departure_date_time),
-                    arrivalTime: parseSNCFDateTime(section.arrival_date_time)
-                })),
+                sections: journey.sections
+                    .map(section => {
+                    // Get location names based on section type and available properties
+                    let fromName = 'Unknown location';
+                    let toName = 'Unknown location';
+                    let fromId: string | undefined;
+                    let toId: string | undefined;
+                    let mode: string | undefined;
+                    
+                    // For public_transport sections, use stop_point.name
+                    if (section.type === 'public_transport') {
+                        fromName = section.from?.stop_point?.name || section.from?.name || 'Unknown location';
+                        toName = section.to?.stop_point?.name || section.to?.name || 'Unknown location';
+                        fromId = section.from?.stop_point?.id || section.from?.id;
+                        toId = section.to?.stop_point?.id || section.to?.id;
+                        // Try to get mode from display_informations if available
+                        mode = (section as any).display_informations?.commercial_mode || 
+                              (section as any).display_informations?.physical_mode;
+                    } 
+                    // For crow_fly sections, use name property if available
+                    else if (section.type === 'crow_fly') {
+                        fromName = section.from?.name || section.from?.stop_point?.name || 'Unknown location';
+                        toName = section.to?.name || section.to?.stop_point?.name || 'Unknown location';
+                        fromId = section.from?.id;
+                        toId = section.to?.id;
+                        mode = (section as any).mode || 'walking'; // crow_fly sections often have a mode property
+                    }
+                    // For any other section types
+                    else {
+                        fromName = section.from?.name || section.from?.stop_point?.name || 'Unknown location';
+                        toName = section.to?.name || section.to?.stop_point?.name || 'Unknown location';
+                        fromId = section.from?.id;
+                        toId = section.to?.id;
+                    }
+                    
+                    // Extract display information if available
+                    const displayInfo = (section as any).display_informations;
+                    
+                    return {
+                        type: section.type,
+                        mode: mode,
+                        duration: section.duration || 0,
+                        from: fromName,
+                        fromId: fromId,
+                        to: toName,
+                        toId: toId,
+                        departureTime: parseSNCFDateTime(section.departure_date_time),
+                        arrivalTime: parseSNCFDateTime(section.arrival_date_time),
+                        // Display information fields
+                        commercialMode: displayInfo?.commercial_mode,
+                        physicalMode: displayInfo?.physical_mode,
+                        network: displayInfo?.network,
+                        direction: displayInfo?.direction,
+                        label: displayInfo?.label,
+                        headsign: displayInfo?.headsign,
+                        description: displayInfo?.description,
+                        tripShortName: displayInfo?.trip_short_name,
+                        textColor: displayInfo?.text_color,
+                        color: displayInfo?.color,
+                        code: displayInfo?.code
+                    };
+                })
+                .filter(section => section.mode !== 'walking'),
                 requestedApiDepartureTime: requestedApiDepartureTimeISO
             };
         });
@@ -266,15 +371,16 @@ export async function findEarliestArrivingJourneys(
 // Update findStations to match the new interface
 export async function findStations(query: string): Promise<Station[]> {
     const places = await SNCF.places(query, ['stop_area']);
-    
+    console.log(`[SERVER][findStations] Found ${places.length} stations`);
+    console.log(`[SERVER][findStations] Places: ${JSON.stringify(places, null, 2)}`);
     return places
-        .filter(place => place.embedded_type === 'stop_area' && place.coord)
+        .filter(place => place.embedded_type === 'stop_area' && place.stop_area && place.stop_area.coord)
         .map(place => ({
-            id: place.id,
-            name: place.name,
+            id: place.stop_area!.id,
+            name: place.stop_area!.name,
             coordinates: {
-                longitude: parseFloat(place.coord.lon),
-                latitude: parseFloat(place.coord.lat)
+                longitude: parseFloat(place.stop_area!.coord.lon),
+                latitude: parseFloat(place.stop_area!.coord.lat)
             }
         }));
 }

@@ -25,9 +25,10 @@ describe('SNCF API Integration', () => {
         expect(typeof station.id).toBe('string');
         
         // Coordinates might be in different formats
-        if (station.coord) {
-          expect(station.coord).toHaveProperty('lat');
-          expect(station.coord).toHaveProperty('lon');
+        expect(station.stop_area).toBeDefined();
+        if (station.stop_area?.coord) {
+          expect(station.stop_area?.coord).toHaveProperty('lat');
+          expect(station.stop_area?.coord).toHaveProperty('lon');
         }
       }
     });
@@ -88,9 +89,10 @@ describe('SNCF API Integration', () => {
       expect(station).toHaveProperty('embedded_type');
       
       // Some stations might not have coordinates
-      if (station.coord) {
-        expect(station.coord).toHaveProperty('lat');
-        expect(station.coord).toHaveProperty('lon');
+      expect(station.stop_area).toBeDefined();
+      if (station.stop_area?.coord) {
+        expect(station.stop_area?.coord).toHaveProperty('lat');
+        expect(station.stop_area?.coord).toHaveProperty('lon');
       }
 
       // Quality is optional
