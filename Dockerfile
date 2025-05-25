@@ -55,4 +55,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Start the server
-CMD ["node", "--enable-source-maps", "packages/server/dist/index.js", "--mock"] 
+CMD ["node", "--enable-source-maps", "packages/server/dist/index.js"] 
