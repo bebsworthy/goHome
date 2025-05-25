@@ -111,6 +111,64 @@ const getModeColor = (mode?: string, commercialMode?: string, apiColor?: string)
 };
 
 /**
+ * JourneyTimeInfo Component
+ * Displays departure and arrival times with optional "Earliest" chip
+ */
+const JourneyTimeInfo: React.FC<{ departureTime: Date; arrivalTime: Date; isFastest?: boolean }> = ({ 
+  departureTime, 
+  arrivalTime, 
+  isFastest = false 
+}) => {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <Typography variant="h6">
+        {formatTime(departureTime)} - {formatTime(arrivalTime)}
+      </Typography>
+      {isFastest && (
+        <Chip
+          label="Earliest"
+          color="success"
+          size="small"
+          sx={{ ml: 1 }}
+        />
+      )}
+    </Box>
+  );
+};
+
+/**
+ * DurationInfo Component
+ * Displays the duration of a journey
+ */
+const DurationInfo: React.FC<{ durationInSeconds: number }> = ({ durationInSeconds }) => {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
+      <Typography variant="body2">
+        {formatDuration(durationInSeconds)}
+      </Typography>
+    </Box>
+  );
+};
+
+/**
+ * TransfersInfo Component
+ * Displays information about transfers in a journey
+ */
+const TransfersInfo: React.FC<{ transfers: number }> = ({ transfers }) => {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <SwapVertIcon fontSize="small" sx={{ mr: 0.5 }} />
+      <Typography variant="body2" color="text.secondary">
+        {transfers === 0 
+          ? 'Direct' 
+          : `${transfers} ${transfers === 1 ? 'change' : 'changes'}`}
+      </Typography>
+    </Box>
+  );
+};
+
+/**
  * Journey Section Component
  * Displays a single section of a journey
  */
@@ -188,33 +246,13 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({ jour
             {/* Journey Header */}
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="h6">
-                    {formatTime(journey.departureTime)} - {formatTime(journey.arrivalTime)}
-                  </Typography>
-                  {isFastest && (
-                    <Chip
-                      label="Earliest"
-                      color="success"
-                      size="small"
-                      sx={{ ml: 1 }}
-                    />
-                  )}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-                  <Typography variant="body2">
-                    {formatDuration(journey.duration)}
-                  </Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <SwapVertIcon fontSize="small" sx={{ mr: 0.5 }} />
-                <Typography variant="body2" color="text.secondary">
-                  {journey.transfers === 0 
-                    ? 'Direct' 
-                    : `${journey.transfers} ${journey.transfers === 1 ? 'change' : 'changes'}`}
-                </Typography>
+                <JourneyTimeInfo 
+                  departureTime={journey.departureTime} 
+                  arrivalTime={journey.arrivalTime} 
+                  isFastest={isFastest} 
+                />
+                <TransfersInfo transfers={journey.transfers} />
+                <DurationInfo durationInSeconds={journey.duration} />
               </Box>
               <Divider />
             </Grid>
