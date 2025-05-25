@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/data:/data
+      - ./traefik/config:/etc/traefik
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.yourdomain.com`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+
+  gohome:
+    build: .
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gohome.entrypoints=websecure"
+      - "traefik.http.routers.gohome.rule=Host(`yourdomain.com`)"
+      - "traefik.http.routers.gohome.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gohome.loadbalancer.server.port=3000"
+
+networks:
+  proxy:
+    external: true 
