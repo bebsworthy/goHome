@@ -16,9 +16,9 @@ const routes: Routes = [
     icon: HomeIcon,
   },
   {
-    component: asyncComponentLoader(() => import('@/pages/Page1')),
-    path: '/trains',
-    title: 'Trains',
+    component: asyncComponentLoader(() => import('@/pages/Departure')),
+    path: '/departures',
+    title: 'Departures',
     icon: TrainIcon,
   },
   {

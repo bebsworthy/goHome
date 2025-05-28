@@ -44,7 +44,7 @@ export default defineConfig({
       manifest,
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module'
       },
       registerType: 'autoUpdate',

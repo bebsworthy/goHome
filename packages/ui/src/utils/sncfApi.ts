@@ -1,4 +1,5 @@
 import { Journey, Station } from '../config/state';
+import type { Departure, DeparturesResponse } from './types';
 
 /**
  * SNCF API Service
@@ -180,6 +181,71 @@ export class SNCFApiService {
       return journeys;
     } catch (error) {
       console.error('[API] Error searching journeys:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch departures from a station
+   * @param stopId Station ID
+   * @param fromDateTime Optional departure time (ISO string)
+   * @param count Number of departures to fetch (default: 10, max: 50)
+   * @returns List of departures
+   * @throws Error with user-friendly message for rate limiting or other issues
+   */
+  async getDepartures(
+    stopId: string,
+    fromDateTime?: string,
+    count: number = 10
+  ): Promise<Departure[]> {
+    console.log(`[API] Fetching departures from ${stopId}`);
+
+    try {
+      const headers = this.getHeaders();
+      const queryParams = new URLSearchParams({
+        stop_id: stopId,
+        count: count.toString()
+      });
+
+      if (fromDateTime) {
+        queryParams.append('from_datetime', fromDateTime);
+      }
+
+      const url = `${this.BASE_URL}/departures?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        console.error(`[API] Error response: ${response.status} ${response.statusText}`);
+
+        // Check if it's a JSON response with error details
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+
+          // Handle rate limit error
+          if (response.status === 429 || errorData.code === 'RATE_LIMIT_EXCEEDED') {
+            throw new Error(
+              errorData.message || 'Rate limit exceeded. Please try again in a few moments.',
+            );
+          }
+
+          // Handle other API errors
+          throw new Error(errorData.message || `Error: ${response.statusText}`);
+        }
+
+        // Generic error for non-JSON responses
+        throw new Error(`Failed to fetch departures: ${response.statusText}`);
+      }
+
+      const data = await response.json() as DeparturesResponse;
+      console.log(`[API] Received ${data.departures.length} departures`);
+      return data.departures;
+    } catch (error) {
+      console.error('[API] Error fetching departures:', error);
       throw error;
     }
   }

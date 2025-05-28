@@ -11,7 +11,9 @@ import type {
     SNCFJourneysResponse, 
     Place, 
     PlacesResponse, 
-    Station 
+    Station, 
+    Departure, 
+    DeparturesResponse 
 } from './types.js';
 
 const COVERAGE = 'sncf';
@@ -59,6 +61,7 @@ export namespace SNCF {
     function getBaseUrl(): string {
         return process.env.SNCF_BASE_URL || 'https://api.sncf.com/v1';
     }
+
 
     export async function journeys(
         fromStationId: string,
@@ -115,6 +118,33 @@ export namespace SNCF {
 
         const data = await response.json() as PlacesResponse;
         return data.places || []; // Return empty array if no places found
+    }
+
+    export async function departures(
+        stopAreaId: string,
+        dateTime?: string,
+        count: number = 10,
+        dataFreshness: 'base_schedule' | 'realtime' = 'realtime'
+    ): Promise<Response> {
+        const apiKey = getApiKey();
+        const baseUrl = getBaseUrl();
+
+        const params = new URLSearchParams({
+            'data_freshness': dataFreshness,
+            count: count.toString()
+        });
+
+        if (dateTime) {
+            params.append('from_datetime', dateTime);
+        }
+
+        const departuresUrl = `${baseUrl}/coverage/${COVERAGE}/stop_areas/${stopAreaId}/departures?${params.toString()}`;
+
+        return fetch(departuresUrl, {
+            headers: {
+                'Authorization': apiKey
+            }
+        });
     }
 }
 
@@ -271,5 +301,50 @@ export async function findStations(query: string): Promise<Station[]> {
                 latitude: parseFloat(place.stop_area!.coord.lat)
             }
         }));
+}
+
+export async function findDepartures(
+    stopAreaId: string,
+    fromDateTime: Date = new Date(),
+    count: number = 10
+): Promise<Departure[]> {
+    try {
+        // Format datetime for API
+        const dateTimeForAPI = toSNCFDateTime(fromDateTime);
+
+        // Call API
+        const response = await SNCF.departures(stopAreaId, dateTimeForAPI, count);
+
+        if (!response.ok) {
+            // Attempt to get more detailed error from SNCF if possible
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    throw new Error(`${errorData.error.id}: ${errorData.error.message}`);
+                }
+            } catch {
+                // If we can't parse the error JSON, throw generic error with status
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            }
+        }
+
+        // Parse response
+        const responseData = await response.json() as DeparturesResponse;
+
+        // Check for API-level errors
+        if (responseData.error) {
+            throw new Error(`SNCF API Error: ${responseData.error.id} - ${responseData.error.message}`);
+        }
+
+        console.log(`[SERVER] Found ${responseData.departures.length} departures`);
+        return responseData.departures;
+
+    } catch (error) {
+        if (error instanceof Error) {
+            throw error;
+        } else {
+            throw new Error('An unknown error occurred while fetching departures');
+        }
+    }
 }
 
