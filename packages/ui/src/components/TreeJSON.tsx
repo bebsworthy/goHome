@@ -18,11 +18,10 @@ interface NodeProps {
   depth?: number;
 }
 
-const TreeNode: React.FC<NodeProps> = ({ name, value, depth = 0 }) => {
+const TreeNode: React.FC<NodeProps> = ({ value, depth = 0 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const indent = depth * 2; // 2 spaces per level
-  const spaces = ' '.repeat(indent * 2);
-
+  
   const renderPrimitive = (val: JSONValue) => {
     if (val === null) return <span style={{ color: '#666' }}>null</span>;
     if (typeof val === 'boolean') return <span style={{ color: '#0d47a1' }}>{val.toString()}</span>;

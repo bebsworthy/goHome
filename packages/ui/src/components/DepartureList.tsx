@@ -1,7 +1,6 @@
-import { Box, Card, CardContent, Typography, Stack, Collapse, IconButton, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Card, CardContent, Typography, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import type { Departure } from '../utils/types';
 import { useState, useMemo } from 'react';
-import BugReportIcon from '@mui/icons-material/BugReport';
 import { toDate, formatInTimeZone } from 'date-fns-tz';
 import DisplayJSON from './DisplayJSON';
 

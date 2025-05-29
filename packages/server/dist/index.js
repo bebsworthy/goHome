@@ -11,6 +11,9 @@ import { cors } from 'hono/cors';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import { logger } from 'hono/logger';
+import { SNCF } from './sncf.js';
+import { toSNCFDateTime } from './utils/dateTime.js';
 // Check for --mock flag in command line arguments
 const useMockApi = process.argv.includes('--mock');
 // Import either the real API or the mock API based on the flag
@@ -69,9 +72,29 @@ app.get('/api/train-journeys', zValidator('query', trainJourneySchema.shape.quer
     const { from: fromStationId, to: toStationId } = c.req.valid('query');
     console.log(`[SERVER] Searching journeys from ${fromStationId} to ${toStationId}`);
     try {
-        const journeys = await findEarliestArrivingJourneys(fromStationId, toStationId);
-        console.log(`[SERVER] Found ${journeys.length} journeys`);
-        return c.json(journeys);
+        // Format current time for API
+        const now = new Date();
+        const currentDateTimeForAPI = toSNCFDateTime(now);
+        // Call SNCF API directly
+        const response = await SNCF.journeys(fromStationId, toStationId, currentDateTimeForAPI);
+        if (!response.ok) {
+            // Attempt to get more detailed error from SNCF if possible
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    throw new Error(`${errorData.error.id}: ${errorData.error.message}`);
+                }
+            }
+            catch {
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            }
+        }
+        // Parse and return the raw response
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(`SNCF API Error: ${data.error.id} - ${data.error.message}`);
+        }
+        return c.json(data);
     }
     catch (error) {
         console.error('[SERVER] Error fetching train journeys:', error);

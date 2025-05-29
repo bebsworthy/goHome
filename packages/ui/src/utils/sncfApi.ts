@@ -1,4 +1,4 @@
-import { Journey, Station, SNCFJourneysResponse } from '../config/state';
+import { Station, SNCFJourneysResponse } from '../config/state';
 import type { Departure, DeparturesResponse } from './types';
 
 /**

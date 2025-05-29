@@ -134,7 +134,7 @@ const TripSummary: React.FC<{ sections: Section[] }> = ({ sections }) => {
   const modeColor = getModeColor(firstSection.mode, firstSection.display_informations);
 
   // Helper component for separator dot
-  const Separator = () => <span>&#160;&#183;&#160;</span>;
+  // const Separator = () => <span>&#160;&#183;&#160;</span>;
 
   const Label = () => {
     const displayInfo = firstSection.display_informations;
@@ -225,8 +225,10 @@ const TransfersInfo: React.FC<{ transfers: number }> = ({ transfers }) => {
 const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
   const [showStops, setShowStops] = useState(true);
   const modeColor = getModeColor(section.mode, section.display_informations);
-  const fromName = section.from.stop_point?.name || section.from.name || 'Unknown location';
-  const toName = section.to.stop_point?.name || section.to.name || 'Unknown location';
+  
+  // More robust handling of location names with proper null checks
+  const fromName = section.from?.stop_point?.name || section.from?.name || 'Unknown location';
+  const toName = section.to?.stop_point?.name || section.to?.name || 'Unknown location';
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'flex-start', my: 1 }}>
@@ -397,7 +399,7 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
               <Grid item xs={12}>
                 <Divider />
                 {journey.sections
-                  .filter(section => section.mode !== 'walking')
+                  .filter(section => !['crow_fly', 'transfer', 'waiting'].includes(section.type || ''))
                   .map((section, index, filteredSections) => (
                     <React.Fragment key={index}>
                       <JourneySectionItem section={section} />

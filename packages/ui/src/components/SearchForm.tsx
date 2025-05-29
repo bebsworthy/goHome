@@ -1,7 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
 
 import ClearIcon from '@mui/icons-material/Clear';
-import HistoryIcon from '@mui/icons-material/History';
 import SearchIcon from '@mui/icons-material/Search';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -11,7 +10,6 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import {
   Box,
   Button,
-  Chip,
   Grid,
   IconButton,
   Paper,
@@ -37,13 +35,11 @@ export default function SearchForm() {
     destination,
     isLoading,
     hasValidSearch,
-    lastSearch,
     setOrigin,
     setDestination,
     searchJourneys,
     swapStations,
     clearSavedSearch,
-    isUsingSavedData,
   } = useJourneyQuery();
 
   // Initialize isExpanded based on whether we need input
