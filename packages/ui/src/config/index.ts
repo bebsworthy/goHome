@@ -1,8 +1,8 @@
-const title = 'React PWA';
+const title = 'GoHome';
 
 const email = 'auther-email@gmail.com';
 
-const repository = 'https://github.com/suren-atoyan/react-pwa';
+const repository = null;
 
 const dateFormat = 'MMMM DD, YYYY';
 
@@ -14,7 +14,7 @@ const loader = {
 
 const defaultMetaTags = {
   image: '/cover.png',
-  description: 'Starter kit for modern web applications',
+  description: 'Personal app to go home faster',
 };
 
 export { loader, dateFormat, repository, email, title, defaultMetaTags };

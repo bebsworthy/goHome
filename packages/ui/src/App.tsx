@@ -27,7 +27,6 @@ function App() {
   return (
     <Fragment>
       <CssBaseline />
-      <HotKeys />
       <BrowserRouter>
         <Header />
         <Sidebar />
