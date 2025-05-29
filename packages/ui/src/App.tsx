@@ -10,7 +10,6 @@ import PWAUpdateNotification from './components/PWAUpdateNotification';
 import { useStationCache } from './hooks/useStationCache';
 import Pages from './routes/Pages';
 import Header from './sections/Header';
-import HotKeys from './sections/HotKeys';
 import Sidebar from './sections/Sidebar';
 
 function App() {

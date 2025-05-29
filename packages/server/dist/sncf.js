@@ -1,19 +1,20 @@
+import { logApiCall } from './utils/logger.js';
+import { toDate, formatInTimeZone } from 'date-fns-tz';
 const COVERAGE = 'sncf';
+const FRANCE_TIMEZONE = 'Europe/Paris';
 // --- Helper Functions ---
 /**
  * Formats a JavaScript Date object into SNCF's datetime string format (YYYYMMDDTHHmmss).
- * @param date The JavaScript Date object to format.
- * @returns The formatted datetime string.
+ * @param date The JavaScript Date object to format (in local timezone).
+ * @returns The formatted datetime string in France timezone.
  */
 function toSNCFDateTime(date) {
-    return date.toISOString()
-        .replace(/[-:]/g, '') // Remove dashes and colons
-        .replace(/\.\d+Z$/, ''); // Remove milliseconds and Z
+    return formatInTimeZone(date, FRANCE_TIMEZONE, "yyyyMMdd'T'HHmmss");
 }
 /**
  * Parses SNCF's datetime string (YYYYMMDDTHHmmss) into a JavaScript Date object.
  * @param dateTimeStr The SNCF datetime string.
- * @returns A JavaScript Date object.
+ * @returns A JavaScript Date object in the local timezone.
  */
 function parseSNCFDateTime(dateTimeStr) {
     const year = parseInt(dateTimeStr.slice(0, 4));
@@ -22,8 +23,8 @@ function parseSNCFDateTime(dateTimeStr) {
     const hour = parseInt(dateTimeStr.slice(9, 11));
     const minute = parseInt(dateTimeStr.slice(11, 13));
     const second = parseInt(dateTimeStr.slice(13, 15));
-    // SNCF typically uses UTC or the local time of the covered area.
-    return new Date(Date.UTC(year, month, day, hour, minute, second));
+    // Create a Date object in France timezone and convert to UTC
+    return toDate(new Date(year, month, day, hour, minute, second), { timeZone: FRANCE_TIMEZONE });
 }
 // --- SNCF API Endpoints ---
 export var SNCF;
@@ -79,6 +80,37 @@ export var SNCF;
         return data.places || []; // Return empty array if no places found
     }
     SNCF.places = places;
+    async function departures(stopAreaId, dateTime, count = 10, dataFreshness = 'realtime') {
+        const apiKey = getApiKey();
+        const baseUrl = getBaseUrl();
+        const params = new URLSearchParams({
+            'data_freshness': dataFreshness,
+            count: count.toString()
+        });
+        if (dateTime) {
+            params.append('from_datetime', dateTime);
+        }
+        const departuresUrl = `${baseUrl}/coverage/${COVERAGE}/stop_areas/${stopAreaId}/departures?${params.toString()}`;
+        const response = await fetch(departuresUrl, {
+            headers: {
+                'Authorization': apiKey
+            }
+        });
+        // Clone the response so we can read it twice (once for logging, once for returning)
+        const responseClone = response.clone();
+        // Log the API call if the response is OK
+        if (response.ok) {
+            try {
+                const responseData = await responseClone.json();
+                await logApiCall('departures', departuresUrl, responseData);
+            }
+            catch (error) {
+                console.error('[SNCF] Error logging API call:', error);
+            }
+        }
+        return response;
+    }
+    SNCF.departures = departures;
 })(SNCF || (SNCF = {}));
 // --- Business Logic Functions ---
 export async function findEarliestArrivingJourneys(fromStationId, toStationId, now = new Date()) {
@@ -218,5 +250,42 @@ export async function findStations(query) {
             latitude: parseFloat(place.stop_area.coord.lat)
         }
     }));
+}
+export async function findDepartures(stopAreaId, fromDateTime = new Date(), count = 10) {
+    try {
+        // Format datetime for API
+        const dateTimeForAPI = toSNCFDateTime(fromDateTime);
+        // Call API
+        const response = await SNCF.departures(stopAreaId, dateTimeForAPI, count);
+        if (!response.ok) {
+            // Attempt to get more detailed error from SNCF if possible
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    throw new Error(`${errorData.error.id}: ${errorData.error.message}`);
+                }
+            }
+            catch {
+                // If we can't parse the error JSON, throw generic error with status
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            }
+        }
+        // Parse response
+        const responseData = await response.json();
+        // Check for API-level errors
+        if (responseData.error) {
+            throw new Error(`SNCF API Error: ${responseData.error.id} - ${responseData.error.message}`);
+        }
+        console.log(`[SERVER] Found ${responseData.departures.length} departures`);
+        return responseData.departures;
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            throw error;
+        }
+        else {
+            throw new Error('An unknown error occurred while fetching departures');
+        }
+    }
 }
 //# sourceMappingURL=sncf.js.map

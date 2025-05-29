@@ -56,7 +56,7 @@ export default function DepartureList({ departures }: DepartureListProps) {
   
   const [selectedModes, setSelectedModes] = useState<string[]>(uniquePhysicalModes);
 
-  const handleModeToggle = (event: React.MouseEvent<HTMLElement>, newModes: string[]) => {
+  const handleModeToggle = (_: React.MouseEvent<HTMLElement>, newModes: string[]) => {
     setSelectedModes(newModes);
   };
 

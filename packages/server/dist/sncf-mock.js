@@ -210,4 +210,56 @@ export async function findStations(query) {
     console.log(`[MOCK API] Found ${matchingStations.length} stations matching "${query}"`);
     return matchingStations;
 }
+// Mock implementation of findDepartures
+export async function findDepartures(stopAreaId, fromDateTime = new Date(), count = 10) {
+    console.log(`[MOCK API] Finding departures from ${stopAreaId}`);
+    // Simulate network delay (200-800ms)
+    await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 600));
+    // Get or create mock station for the provided ID
+    const station = getOrCreateMockStation(stopAreaId);
+    // Generate mock departures
+    const departures = [];
+    let currentTime = new Date(fromDateTime);
+    for (let i = 0; i < count; i++) {
+        // Add random minutes (5-30) to the current time
+        currentTime = new Date(currentTime.getTime() + (5 + Math.random() * 25) * 60000);
+        // Generate a random destination from our mock stations
+        const destinationIds = Object.keys(mockStations).filter(id => id !== stopAreaId);
+        const destinationId = destinationIds[Math.floor(Math.random() * destinationIds.length)];
+        const destination = mockStations[destinationId];
+        departures.push({
+            stop_point: {
+                id: `${station.id}:1`,
+                name: station.name,
+                coord: {
+                    lat: station.coordinates.latitude,
+                    lon: station.coordinates.longitude
+                }
+            },
+            route: {
+                id: `route:SNCF:${Math.random().toString(36).substring(7)}`,
+                name: `${station.name} - ${destination.name}`,
+                direction: {
+                    id: destination.id,
+                    name: destination.name
+                }
+            },
+            stop_date_time: {
+                departure_date_time: currentTime.toISOString(),
+                base_departure_date_time: currentTime.toISOString(),
+                arrival_date_time: currentTime.toISOString(),
+                base_arrival_date_time: currentTime.toISOString()
+            },
+            display_informations: {
+                network: 'SNCF',
+                physical_mode: Math.random() > 0.5 ? 'Train grande vitesse' : 'Train express régional',
+                headsign: `${Math.random() > 0.5 ? 'TGV' : 'TER'} ${Math.floor(Math.random() * 9999)}`,
+                direction: destination.name,
+                commercial_mode: Math.random() > 0.5 ? 'TGV INOUI' : 'TER',
+                label: Math.random() > 0.5 ? 'TGV' : 'TER'
+            }
+        });
+    }
+    return departures;
+}
 //# sourceMappingURL=sncf-mock.js.map

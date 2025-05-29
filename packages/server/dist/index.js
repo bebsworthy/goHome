@@ -1,8 +1,9 @@
 // Load environment variables first
 import * as dotenv from 'dotenv';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, relative } from 'path';
 import { lookup } from 'mime-types';
+import { fileURLToPath } from 'url';
 dotenv.config();
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
@@ -13,24 +14,26 @@ import { zValidator } from '@hono/zod-validator';
 // Check for --mock flag in command line arguments
 const useMockApi = process.argv.includes('--mock');
 // Import either the real API or the mock API based on the flag
-let findEarliestArrivingJourneys, findStations;
+let findEarliestArrivingJourneys, findStations, findDepartures;
 if (useMockApi) {
     console.log('🔶 Using MOCK SNCF API - No API calls will be made to the real SNCF API');
     const mockApi = await import('./sncf-mock.js');
     findEarliestArrivingJourneys = mockApi.findEarliestArrivingJourneys;
     findStations = mockApi.findStations;
+    findDepartures = mockApi.findDepartures;
 }
 else {
     console.log('🔷 Using REAL SNCF API - API calls will be made to the actual SNCF API');
     const realApi = await import('./sncf.js');
     findEarliestArrivingJourneys = realApi.findEarliestArrivingJourneys;
     findStations = realApi.findStations;
+    findDepartures = realApi.findDepartures;
 }
 const app = new Hono();
 // Add CORS middleware with detailed logging
 app.use('/*', async (c, next) => {
     console.log(`[SERVER] Received request: ${c.req.method} ${c.req.url}`);
-    console.log(`[SERVER] Request headers:`, Object.fromEntries(c.req.raw.headers.entries()));
+    // console.log(`[SERVER] Request headers:`, Object.fromEntries(c.req.raw.headers.entries()));
     // Apply CORS
     const corsMiddleware = cors({
         origin: '*', // Allow all origins
@@ -42,15 +45,14 @@ app.use('/*', async (c, next) => {
     });
     await corsMiddleware(c, next);
     console.log(`[SERVER] Response status: ${c.res.status}`);
-    console.log(`[SERVER] Response headers:`, Object.fromEntries(c.res.headers.entries()));
+    // console.log(`[SERVER] Response headers:`, Object.fromEntries(c.res.headers.entries()));
 });
-// Define the public directory path
-const publicDir = join(process.cwd(), 'packages/server/public');
-console.log(`[SERVER] Serving static files from: ${publicDir}`);
-// API Routes
-app.get('/api', (c) => {
-    return c.text('Hello Api!');
-});
+// Calculate paths for static file serving
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const absolutePublicDir = join(__dirname, '..', 'public');
+const publicDir = relative(process.cwd(), absolutePublicDir);
+console.log(`[SERVER] Absolute public dir: ${absolutePublicDir}`);
+console.log(`[SERVER] Relative public dir for serveStatic: ${publicDir}`);
 // Validation schema for train journey queries
 const trainJourneySchema = z.object({
     query: z.object({
@@ -121,33 +123,66 @@ app.get('/api/stations', zValidator('query', stationSearchSchema.shape.query), a
         }, 500);
     }
 });
-// Custom static file handler - must be last to not interfere with API routes
-app.get('/*', async (c) => {
-    const path = c.req.path;
+// Validation schema for departures query
+const departuresSchema = z.object({
+    query: z.object({
+        stop_id: z.string()
+            .min(1, 'Stop area ID is required')
+            .regex(/^stop_area:SNCF:\d+$/, 'Invalid SNCF station ID format. Expected format: stop_area:SNCF:XXXXXXX'),
+        from_datetime: z.string().datetime().optional(),
+        count: z.coerce.number().min(1).max(50).optional().default(10),
+        data_freshness: z.enum(['base_schedule', 'realtime']).optional()
+    })
+});
+app.get('/api/departures', zValidator('query', departuresSchema.shape.query), async (c) => {
+    const { stop_id: stopId, from_datetime: fromDateTime, count } = c.req.valid('query');
+    console.log(`[SERVER] Fetching departures for ${stopId}`);
     try {
-        // Default to index.html for the root path or if the file doesn't exist
-        const filePath = path === '/' ? 'index.html' : path.slice(1);
-        const fullPath = join(publicDir, filePath);
-        try {
-            const content = await readFile(fullPath);
-            const mimeType = lookup(filePath) || 'application/octet-stream';
-            // Set appropriate content type
-            return new Response(content, {
-                headers: {
-                    'Content-Type': mimeType
-                }
-            });
-        }
-        catch (error) {
-            // If file not found, serve index.html for client-side routing
-            const indexHtml = await readFile(join(publicDir, 'index.html'), 'utf-8');
-            return c.html(indexHtml);
-        }
+        const departures = await findDepartures(stopId, fromDateTime ? new Date(fromDateTime) : undefined, count);
+        return c.json({
+            departures,
+            pagination: {
+                total_count: departures.length,
+                items_per_page: count,
+                start_page: 0
+            }
+        });
     }
     catch (error) {
-        console.error('Error serving file:', error);
-        return c.text('Internal Server Error', 500);
+        console.error('[SERVER] Error fetching departures:', error);
+        // Check for rate limiting error
+        if (error instanceof Error && error.message.includes('429')) {
+            return c.json({
+                error: 'Rate limit exceeded',
+                message: 'The SNCF API rate limit has been exceeded. Please try again in a few moments.',
+                code: 'RATE_LIMIT_EXCEEDED'
+            }, 429);
+        }
+        // Handle other errors
+        return c.json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : 'An unexpected error occurred',
+            code: 'INTERNAL_SERVER_ERROR'
+        }, 500);
     }
+});
+// Serve static files for all non-API routes
+app.use('*', async (c, next) => {
+    // Skip if path starts with /api
+    if (c.req.path.startsWith('/api')) {
+        console.log(`[SERVER] Skipping static file serving for API route: ${c.req.path}`);
+        return next();
+    }
+    const staticHandler = serveStatic({
+        root: publicDir,
+        onFound(c) {
+            console.log(`[SERVER] Serving static file: ${c}`);
+        },
+        onNotFound(path, c) {
+            console.error(`[SERVER] File not found: ${path}`);
+        },
+    });
+    return staticHandler(c, next);
 });
 serve({
     fetch: app.fetch,
