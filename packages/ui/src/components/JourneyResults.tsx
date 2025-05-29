@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 
 import {
   AccessTime as AccessTimeIcon,
-  ArrowForward as ArrowForwardIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
   SwapVert as SwapVertIcon,
@@ -21,7 +20,6 @@ import {
   LinearProgress,
   Paper,
   Stack,
-  Tooltip,
   Typography,
 } from '@mui/material';
 
@@ -37,7 +35,6 @@ import {
   lastSearchAtom,
 } from '../config/state';
 import { parseSNCFDateTime } from '@/utils/dateTime';
-import { useJourneyQuery } from '../hooks/useJourneyQuery';
 import DisplayJSON from './DisplayJSON';
 
 /**
@@ -124,20 +121,71 @@ const getModeColor = (mode?: string, displayInfo?: DisplayInformation): string =
 };
 
 /**
- * JourneyTimeInfo Component
- * Displays departure and arrival times with optional "Earliest" chip
+ * TripSummary Component
+ * Displays key information about the first and last non-walking sections of a journey
  */
-const JourneyTimeInfo: React.FC<{
-  departureDateTime: string;
-  arrivalDateTime: string;
-  isFastest?: boolean;
-}> = ({ departureDateTime, arrivalDateTime, isFastest = false }) => {
+const TripSummary: React.FC<{ sections: Section[] }> = ({ sections }) => {
+  // Find first and last non-walking sections
+  const nonWalkingSections = sections.filter(section => section.mode !== 'walking');
+  if (!nonWalkingSections.length) return null;
+
+  const firstSection = nonWalkingSections[0];
+  const lastSection = nonWalkingSections[nonWalkingSections.length - 1];
+  const modeColor = getModeColor(firstSection.mode, firstSection.display_informations);
+
+  // Helper component for separator dot
+  const Separator = () => <span>&#160;&#183;&#160;</span>;
+
+  const Label = () => {
+    const displayInfo = firstSection.display_informations;
+    if (!displayInfo) return null;
+
+    if (displayInfo.physical_mode?.startsWith('RER')) {
+      return displayInfo.label;
+    }
+    else if (displayInfo.physical_mode?.startsWith('TER')) {
+      return displayInfo.commercial_mode;
+    }
+    else {
+      return displayInfo.commercial_mode || firstSection.mode || firstSection.type;
+    }
+  }
+
+  // Get the destination from the last section
+  const destination = lastSection.display_informations?.direction || lastSection.to.name || lastSection.to.id;
+  const startTime = formatTime(firstSection.departure_date_time);
+  const endTime = formatTime(lastSection.arrival_date_time);
+  const label = Label();
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Typography variant="h6">
-        {formatTime(departureDateTime)} - {formatTime(arrivalDateTime)}
+      <Typography component="span" variant="body2" fontWeight="medium" sx={{ mr: 1 }}>
+        {startTime} - {endTime}
       </Typography>
-      {isFastest && <Chip label="Earliest" color="success" size="small" sx={{ ml: 1 }} />}
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: modeColor,
+          color: 'white',
+          borderRadius: '5px',
+          // width: 24,
+          height: 24,
+          fontSize: '0.75rem',
+          fontWeight: 'bold',
+          pr: 1,
+          pl: 1,
+          mr: 1,
+        }}
+      >
+        {label}
+      </Box>
+      {destination && (
+        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          to {destination}
+        </Typography>
+      )}
     </Box>
   );
 };
@@ -151,87 +199,6 @@ const DurationInfo: React.FC<{ durationInSeconds: number }> = ({ durationInSecon
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
       <Typography variant="body2">{formatDuration(durationInSeconds)}</Typography>
-    </Box>
-  );
-};
-
-/**
- * FirstSectionInfo Component
- * Displays key information about the first section of a journey
- */
-const FirstSectionInfo: React.FC<{ section: Section }> = ({ section }) => {
-  const modeColor = getModeColor(section.mode, section.display_informations);
-
-  // Helper component for separator dot
-  const Separator = () => <span>&#160;&#183;&#160;</span>;
-
-  // Render the appropriate content based on transport type
-  const renderContent = () => {
-    const displayInfo = section.display_informations;
-    if (!displayInfo) return null;
-
-    if (displayInfo.physical_mode?.startsWith('RER')) {
-      // For TRANSILIEN, display physicalMode, label and headsign
-      return (
-        <>
-          {displayInfo.label && (
-            <>
-              <Separator />
-              {displayInfo.label}
-            </>
-          )}
-          {displayInfo.headsign && (
-            <>
-              <Separator />
-              {displayInfo.headsign}
-            </>
-          )}
-        </>
-      );
-    } else if (displayInfo.physical_mode?.startsWith('TER')) {
-      // For TER, display commercialMode and headsign
-      return (
-        <>
-          {displayInfo.commercial_mode}
-          {displayInfo.headsign && (
-            <>
-              <Separator />
-              {displayInfo.headsign}
-            </>
-          )}
-        </>
-      );
-    } else {
-      // For all others, display commercialMode and headsign
-      const mode = displayInfo.commercial_mode || section.mode || section.type;
-      return (
-        <>
-          {mode}
-          {displayInfo.headsign && (
-            <>
-              <Separator />
-              {displayInfo.headsign}
-            </>
-          )}
-        </>
-      );
-    }
-  };
-
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Box
-        sx={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          bgcolor: modeColor,
-          mr: 1,
-        }}
-      />
-      <Typography variant="body2" color="text.secondary">
-        {renderContent()}
-      </Typography>
     </Box>
   );
 };
@@ -412,20 +379,12 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
             {/* Journey Header */}
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <JourneyTimeInfo
-                    departureDateTime={journey.departure_date_time}
-                    arrivalDateTime={journey.arrival_date_time}
-                    isFastest={isFastest}
-                  />
-                </Box>
-
+                {journey.sections && journey.sections.length > 0 && (
+                    <TripSummary sections={journey.sections} />
+                )}
                 <Box
                   sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-end' }}
                 >
-                  {journey.sections && journey.sections.length > 0 && (
-                    <FirstSectionInfo section={journey.sections[0]} />
-                  )}
                   <TransfersInfo transfers={journey.nb_transfers} />
                   <DurationInfo durationInSeconds={journey.duration} />
                   <ExpandButton expanded={expanded} onClick={toggleExpanded} />
