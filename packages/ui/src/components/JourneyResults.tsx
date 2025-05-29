@@ -26,12 +26,14 @@ import { useAtom } from 'jotai';
 
 import {
   Journey,
-  JourneySection,
+  Section,
+  DisplayInformation,
   errorAtom,
   isLoadingAtom,
   journeyResultsAtom,
   lastSearchAtom,
 } from '../config/state';
+import { parseSNCFDateTime } from '@/utils/dateTime';
 
 /**
  * Format a date as a human-readable "time ago" string
@@ -72,7 +74,8 @@ function formatTimeAgo(date: Date): string {
 /**
  * Format a date to display time in HH:MM format
  */
-const formatTime = (date: Date): string => {
+const formatTime = (dateStr: string): string => {
+  const date = parseSNCFDateTime(dateStr);
   return date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -98,18 +101,18 @@ const formatDuration = (durationInSeconds: number): string => {
  * Get a color for a transport mode
  * Prioritizes color from API response, then falls back to predefined colors
  */
-const getModeColor = (mode?: string, commercialMode?: string, apiColor?: string): string => {
+const getModeColor = (mode?: string, displayInfo?: DisplayInformation): string => {
   // First priority: use color from API if available
-  if (apiColor && apiColor.trim() !== '') {
+  if (displayInfo?.color && displayInfo.color.trim() !== '') {
     // Ensure color has # prefix if it's a hex code without it
-    return apiColor.startsWith('#') ? apiColor : `#${apiColor}`;
+    return displayInfo.color.startsWith('#') ? displayInfo.color : `#${displayInfo.color}`;
   }
 
   // Second priority: use our predefined mappings
   if (mode === 'walking') return '#8c9eff'; // Light blue
-  if (commercialMode === 'NOMAD') return '#1976d2'; // Blue
-  if (commercialMode === 'TGV') return '#d32f2f'; // Red
-  if (commercialMode === 'TER') return '#388e3c'; // Green
+  if (displayInfo?.commercial_mode === 'NOMAD') return '#1976d2'; // Blue
+  if (displayInfo?.commercial_mode === 'TGV') return '#d32f2f'; // Red
+  if (displayInfo?.commercial_mode === 'TER') return '#388e3c'; // Green
 
   // Fallback
   return '#757575'; // Default gray
@@ -120,14 +123,14 @@ const getModeColor = (mode?: string, commercialMode?: string, apiColor?: string)
  * Displays departure and arrival times with optional "Earliest" chip
  */
 const JourneyTimeInfo: React.FC<{
-  departureTime: Date;
-  arrivalTime: Date;
+  departureDateTime: string;
+  arrivalDateTime: string;
   isFastest?: boolean;
-}> = ({ departureTime, arrivalTime, isFastest = false }) => {
+}> = ({ departureDateTime, arrivalDateTime, isFastest = false }) => {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <Typography variant="h6">
-        {formatTime(departureTime)} - {formatTime(arrivalTime)}
+        {formatTime(departureDateTime)} - {formatTime(arrivalDateTime)}
       </Typography>
       {isFastest && <Chip label="Earliest" color="success" size="small" sx={{ ml: 1 }} />}
     </Box>
@@ -151,55 +154,58 @@ const DurationInfo: React.FC<{ durationInSeconds: number }> = ({ durationInSecon
  * FirstSectionInfo Component
  * Displays key information about the first section of a journey
  */
-const FirstSectionInfo: React.FC<{ section: JourneySection }> = ({ section }) => {
-  const modeColor = getModeColor(section.mode, section.commercialMode, section.color);
+const FirstSectionInfo: React.FC<{ section: Section }> = ({ section }) => {
+  const modeColor = getModeColor(section.mode, section.display_informations);
 
   // Helper component for separator dot
   const Separator = () => <span>&#160;&#183;&#160;</span>;
 
   // Render the appropriate content based on transport type
   const renderContent = () => {
-    if (section.physicalMode?.startsWith('RER')) {
+    const displayInfo = section.display_informations;
+    if (!displayInfo) return null;
+
+    if (displayInfo.physical_mode?.startsWith('RER')) {
       // For TRANSILIEN, display physicalMode, label and headsign
       return (
         <>
-          {section.label && (
+          {displayInfo.label && (
             <>
               <Separator />
-              {section.label}
+              {displayInfo.label}
             </>
           )}
-          {section.headsign && (
+          {displayInfo.headsign && (
             <>
               <Separator />
-              {section.headsign}
+              {displayInfo.headsign}
             </>
           )}
         </>
       );
-    } else if (section.physicalMode?.startsWith('TER')) {
+    } else if (displayInfo.physical_mode?.startsWith('TER')) {
       // For TER, display commercialMode and headsign
       return (
         <>
-          {section.commercialMode}
-          {section.headsign && (
+          {displayInfo.commercial_mode}
+          {displayInfo.headsign && (
             <>
               <Separator />
-              {section.headsign}
+              {displayInfo.headsign}
             </>
           )}
         </>
       );
     } else {
       // For all others, display commercialMode and headsign
-      const mode = section.commercialMode || section.mode || section.type;
+      const mode = displayInfo.commercial_mode || section.mode || section.type;
       return (
         <>
           {mode}
-          {section.headsign && (
+          {displayInfo.headsign && (
             <>
               <Separator />
-              {section.headsign}
+              {displayInfo.headsign}
             </>
           )}
         </>
@@ -244,8 +250,10 @@ const TransfersInfo: React.FC<{ transfers: number }> = ({ transfers }) => {
  * Journey Section Component
  * Displays a single section of a journey
  */
-const JourneySectionItem: React.FC<{ section: JourneySection }> = ({ section }) => {
-  const modeColor = getModeColor(section.mode, section.commercialMode, section.color);
+const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
+  const modeColor = getModeColor(section.mode, section.display_informations);
+  const fromName = section.from.stop_point?.name || section.from.name || 'Unknown location';
+  const toName = section.to.stop_point?.name || section.to.name || 'Unknown location';
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
@@ -260,7 +268,7 @@ const JourneySectionItem: React.FC<{ section: JourneySection }> = ({ section }) 
       />
       <Box sx={{ flexGrow: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          {formatTime(section.departureTime)} - {section.from}
+          {formatTime(section.departure_date_time)} - {fromName}
         </Typography>
         <Box
           sx={{
@@ -279,7 +287,7 @@ const JourneySectionItem: React.FC<{ section: JourneySection }> = ({ section }) 
           />
           <Chip
             size="small"
-            label={section.commercialMode || section.mode || section.type}
+            label={section.display_informations?.commercial_mode || section.mode || section.type}
             sx={{
               bgcolor: modeColor,
               color: 'white',
@@ -287,15 +295,15 @@ const JourneySectionItem: React.FC<{ section: JourneySection }> = ({ section }) 
               mr: 1,
             }}
           />
-          {section.label && (
-            <Chip size="small" label={section.label} variant="outlined" sx={{ mr: 1 }} />
+          {section.display_informations?.label && (
+            <Chip size="small" label={section.display_informations.label} variant="outlined" sx={{ mr: 1 }} />
           )}
           <Typography variant="caption" color="text.secondary">
-            {formatDuration(section.duration)}
+            {formatDuration(section.duration || 0)}
           </Typography>
         </Box>
         <Typography variant="body2" color="text.secondary">
-          {formatTime(section.arrivalTime)} - {section.to}
+          {formatTime(section.arrival_date_time)} - {toName}
         </Typography>
       </Box>
     </Box>
@@ -317,6 +325,7 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
     e.stopPropagation();
     setExpanded(!expanded);
   };
+
   return (
     <Card
       sx={{
@@ -333,8 +342,8 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <JourneyTimeInfo
-                    departureTime={journey.departureTime}
-                    arrivalTime={journey.arrivalTime}
+                    departureDateTime={journey.departure_date_time}
+                    arrivalDateTime={journey.arrival_date_time}
                     isFastest={isFastest}
                   />
                   <Box
@@ -362,7 +371,7 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
                   {journey.sections && journey.sections.length > 0 && (
                     <FirstSectionInfo section={journey.sections[0]} />
                   )}
-                  <TransfersInfo transfers={journey.transfers} />
+                  <TransfersInfo transfers={journey.nb_transfers} />
                   <DurationInfo durationInSeconds={journey.duration} />
                 </Box>
               </Box>
@@ -450,24 +459,25 @@ export default function JourneyResults() {
       )}
 
       {/* Results */}
-      {!isLoading && !error && journeyResults && (
+      {!isLoading && !error && journeyResults?.journeys && (
         <>
-          {journeyResults.length === 0 ? (
+          {journeyResults.journeys.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
               No journeys found. Try different stations or a different time.
             </Alert>
           ) : (
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Found {journeyResults.length} {journeyResults.length === 1 ? 'journey' : 'journeys'}{' '}
+                Found {journeyResults.journeys.length}{' '}
+                {journeyResults.journeys.length === 1 ? 'journey' : 'journeys'}{' '}
                 (sorted by earliest arrival)
               </Typography>
               <Stack spacing={2}>
                 {/* Sort journeys by earliest arrival time and highlight the one that arrives first */}
                 {(() => {
                   // Sort journeys by arrival time
-                  const sortedJourneys = [...journeyResults].sort(
-                    (a, b) => a.arrivalTime.getTime() - b.arrivalTime.getTime(),
+                  const sortedJourneys = [...journeyResults.journeys].sort(
+                    (a, b) => parseSNCFDateTime(a.arrival_date_time).getTime() - parseSNCFDateTime(b.arrival_date_time).getTime(),
                   );
 
                   // The fastest journey is the one that arrives first (first in the sorted array)
@@ -479,7 +489,7 @@ export default function JourneyResults() {
                       journey={journey}
                       isFastest={Boolean(
                         fastestJourney &&
-                          journey.arrivalTime.getTime() === fastestJourney.arrivalTime.getTime(),
+                          journey.arrival_date_time === fastestJourney.arrival_date_time,
                       )}
                     />
                   ));

@@ -1,4 +1,4 @@
-import { Journey, Station } from '../config/state';
+import { Journey, Station, SNCFJourneysResponse } from '../config/state';
 import type { Departure, DeparturesResponse } from './types';
 
 /**
@@ -118,7 +118,7 @@ export class SNCFApiService {
     originId: string,
     destinationId: string,
     dateTime?: Date,
-  ): Promise<Journey[]> {
+  ): Promise<SNCFJourneysResponse> {
     console.log(`[API] Searching journeys from ${originId} to ${destinationId}`);
 
     try {
@@ -126,11 +126,18 @@ export class SNCFApiService {
       const queryParams = new URLSearchParams({
         from: originId,
         to: destinationId,
+        'min_nb_journeys': '5',  // Request at least 5 journey options
+        'data-freshness': 'realtime',  // Get real-time data
+        'datetime_represents': 'departure',  // Search based on departure time
       });
 
       // Add dateTime parameter if provided
       if (dateTime) {
-        queryParams.append('datetime', dateTime.toISOString());
+        // Format date as YYYYMMDDTHHMMSS
+        const formattedDate = dateTime.toISOString()
+          .replace(/[-:]/g, '')  // Remove dashes and colons
+          .replace(/\.\d+Z$/, ''); // Remove milliseconds and Z
+        queryParams.append('datetime', formattedDate);
       }
 
       const url = `${this.BASE_URL}/train-journeys?${queryParams.toString()}`;
@@ -150,38 +157,45 @@ export class SNCFApiService {
 
           // Handle rate limit error
           if (response.status === 429 || errorData.code === 'RATE_LIMIT_EXCEEDED') {
-            throw new Error(
-              errorData.message || 'Rate limit exceeded. Please try again in a few moments.',
-            );
+            return {
+              error: {
+                id: 'RATE_LIMIT_EXCEEDED',
+                message: errorData.message || 'Rate limit exceeded. Please try again in a few moments.',
+              }
+            };
           }
 
           // Handle other API errors
-          throw new Error(errorData.message || `Error: ${response.statusText}`);
+          return {
+            error: {
+              id: String(response.status),
+              message: errorData.message || `Error: ${response.statusText}`,
+            }
+          };
         }
 
         // Generic error for non-JSON responses
-        throw new Error(`Failed to fetch journeys: ${response.statusText}`);
+        return {
+          error: {
+            id: String(response.status),
+            message: `Failed to fetch journeys: ${response.statusText}`,
+          }
+        };
       }
 
       const data = await response.json();
-      console.log(`[API] Received ${data.length || 0} journeys`);
+      console.log(`[API] Received ${data.journeys?.length || 0} journeys`);
 
-      // Convert string dates to Date objects
-      const journeys = data.map((journey: any) => ({
-        ...journey,
-        departureTime: new Date(journey.departureTime),
-        arrivalTime: new Date(journey.arrivalTime),
-        sections: journey.sections.map((section: any) => ({
-          ...section,
-          departureTime: new Date(section.departureTime),
-          arrivalTime: new Date(section.arrivalTime),
-        })),
-      }));
-
-      return journeys;
+      // Return the complete response
+      return data;
     } catch (error) {
       console.error('[API] Error searching journeys:', error);
-      throw error;
+      return {
+        error: {
+          id: 'UNKNOWN_ERROR',
+          message: error instanceof Error ? error.message : 'An unknown error occurred',
+        }
+      };
     }
   }
 
