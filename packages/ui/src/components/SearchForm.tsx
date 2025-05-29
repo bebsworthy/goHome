@@ -103,6 +103,17 @@ export default function SearchForm() {
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
+          <Tooltip title="Swap stations">
+              <IconButton
+                onClick={swapStations}
+                disabled={!origin && !destination}
+                color="primary"
+                size="small"
+                aria-label="swap stations"
+              >
+                <SwapHorizIcon />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Refresh search">
               <IconButton
                 onClick={handleRefresh}
@@ -127,35 +138,20 @@ export default function SearchForm() {
       )}
 
       {/* Expanded View */}
-      <Collapse in={isExpanded}>
-        {isUsingSavedData && lastSearch && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Chip
-                icon={<HistoryIcon />}
-                label="Using Saved Search"
-                color="primary"
-                variant="outlined"
-                size="small"
-              />
-              <Button
-                variant="outlined"
-                color="secondary"
-                size="small"
-                onClick={handleClearSavedSearch}
-                startIcon={<ClearIcon />}
-              >
-                Clear Saved Search
-              </Button>
-            </Stack>
-          </Box>
-        )}
-
+      <Collapse timeout={0} in={isExpanded}>
+       
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h5" component="h2">
             Trip
           </Typography>
           <Stack direction="row" spacing={1}>
+            <IconButton
+                color="primary"
+                size="small"
+                onClick={handleClearSavedSearch}
+              >
+                <ClearIcon />
+              </IconButton>
             <Tooltip title="Swap stations">
               <IconButton
                 onClick={swapStations}

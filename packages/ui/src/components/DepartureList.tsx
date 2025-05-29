@@ -3,6 +3,7 @@ import type { Departure } from '../utils/types';
 import { useState, useMemo } from 'react';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import { toDate, formatInTimeZone } from 'date-fns-tz';
+import DisplayJSON from './DisplayJSON';
 
 const FRANCE_TIMEZONE = 'Europe/Paris';
 
@@ -47,8 +48,6 @@ function formatTime(dateStr: string): string {
 }
 
 export default function DepartureList({ departures }: DepartureListProps) {
-  const [debugOpenMap, setDebugOpenMap] = useState<Record<string, boolean>>({});
-  
   // Get unique physical modes and initialize all as selected
   const uniquePhysicalModes = useMemo(() => 
     Array.from(new Set(departures.map(d => d.display_informations.physical_mode))).sort()
@@ -58,13 +57,6 @@ export default function DepartureList({ departures }: DepartureListProps) {
 
   const handleModeToggle = (_: React.MouseEvent<HTMLElement>, newModes: string[]) => {
     setSelectedModes(newModes);
-  };
-
-  const toggleDebug = (id: string) => {
-    setDebugOpenMap(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
   };
 
   if (!departures.length) {
@@ -168,24 +160,11 @@ export default function DepartureList({ departures }: DepartureListProps) {
                     <Typography variant="body2" color="text.secondary">
                       {departure.display_informations.network}
                     </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => toggleDebug(departureId)}
-                      sx={{ opacity: 0.6 }}
-                    >
-                      <BugReportIcon fontSize="small" />
-                    </IconButton>
                   </Stack>
                 </Stack>
 
                 {/* debug */}
-                <Collapse in={debugOpenMap[departureId]}>
-                  <Box sx={{ mt: 1, backgroundColor: '#f5f5f5', borderRadius: 1, p: 1 }}>
-                    <pre style={{ fontSize: '10px', margin: 0, whiteSpace: 'pre-wrap' }}>
-                      {JSON.stringify(departure, null, 2)}
-                    </pre>
-                  </Box>
-                </Collapse>
+                <DisplayJSON data={departure} />
               </Stack>
             </CardContent>
           </Card>

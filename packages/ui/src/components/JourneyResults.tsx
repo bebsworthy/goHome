@@ -14,11 +14,14 @@ import {
   CardActionArea,
   CardContent,
   Chip,
+  Collapse,
   Divider,
   Grid,
+  IconButton,
   LinearProgress,
   Paper,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 
@@ -34,6 +37,8 @@ import {
   lastSearchAtom,
 } from '../config/state';
 import { parseSNCFDateTime } from '@/utils/dateTime';
+import { useJourneyQuery } from '../hooks/useJourneyQuery';
+import DisplayJSON from './DisplayJSON';
 
 /**
  * Format a date as a human-readable "time ago" string
@@ -311,6 +316,30 @@ const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
 };
 
 /**
+ * Button to expand/collapse journey details
+ */
+const ExpandButton: React.FC<{
+  expanded: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}> = ({ expanded, onClick }) => (
+  <IconButton
+    onClick={onClick}
+    size="small"
+    sx={{
+      ml: 1,
+      color: 'text.secondary',
+      '&:hover': { color: 'primary.main' },
+    }}
+  >
+    {expanded ? (
+      <ExpandLessIcon fontSize="small" />
+    ) : (
+      <ExpandMoreIcon fontSize="small" />
+    )}
+  </IconButton>
+);
+
+/**
  * Journey Card Component
  * Displays a single journey option
  */
@@ -346,23 +375,7 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
                     arrivalDateTime={journey.arrival_date_time}
                     isFastest={isFastest}
                   />
-                  <Box
-                    onClick={toggleExpanded}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      ml: 1,
-                      cursor: 'pointer',
-                      color: 'text.secondary',
-                      '&:hover': { color: 'primary.main' },
-                    }}
-                  >
-                    {expanded ? (
-                      <ExpandLessIcon fontSize="small" />
-                    ) : (
-                      <ExpandMoreIcon fontSize="small" />
-                    )}
-                  </Box>
+                  
                 </Box>
 
                 <Box
@@ -373,6 +386,7 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
                   )}
                   <TransfersInfo transfers={journey.nb_transfers} />
                   <DurationInfo durationInSeconds={journey.duration} />
+                  <ExpandButton expanded={expanded} onClick={toggleExpanded} />
                 </Box>
               </Box>
             </Grid>
@@ -387,6 +401,8 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
                     {index < journey.sections.length - 1 && <Divider sx={{ my: 1 }} />}
                   </React.Fragment>
                 ))}
+                <Divider />
+                <DisplayJSON data={journey} />
               </Grid>
             )}
           </Grid>
@@ -395,6 +411,41 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
     </Card>
   );
 };
+
+/**
+ * Displays the count of journeys found
+ */
+const JourneyCount: React.FC<{ journeys: Journey[] }> = ({ journeys }) => {
+  if (journeys.length === 0) {
+    return (
+      <Alert severity="info">
+        No journeys found. Try different stations or a different time.
+      </Alert>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary">
+        Found {journeys.length}{' '}
+        {journeys.length === 1 ? 'journey' : 'journeys'}{' '}
+        (sorted by earliest arrival)
+      </Typography>
+    </Box>
+  );
+};
+
+/**
+ * Displays when the journey results were last updated
+ */
+const LastUpdated: React.FC<{ timestamp: string }> = ({ timestamp }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    <AccessTimeIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+    <Typography variant="body2" color="text.secondary">
+      Last updated: {formatTimeAgo(new Date(timestamp))}
+    </Typography>
+  </Box>
+);
 
 /**
  * Journey Results Component
@@ -413,31 +464,21 @@ export default function JourneyResults() {
 
   return (
     <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
-      {/* Header */}
-      <Typography variant="h5" component="h2" gutterBottom>
-        Journey Results
-      </Typography>
 
       {/* Search Info */}
-      {lastSearch && (
+      {!isLoading && lastSearch && (
         <>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <Typography variant="body1" fontWeight="bold">
-              {lastSearch.origin.name}
-            </Typography>
-            <ArrowForwardIcon sx={{ mx: 1 }} />
-            <Typography variant="body1" fontWeight="bold">
-              {lastSearch.destination.name}
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+            {!error && journeyResults?.journeys && (
+              <JourneyCount journeys={journeyResults.journeys} />
+            )}
+
+            {lastSearch.timestamp && (
+              <LastUpdated timestamp={lastSearch.timestamp} />
+            )}
+
           </Box>
-          {lastSearch.timestamp && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <AccessTimeIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-              <Typography variant="body2" color="text.secondary">
-                Last updated: {formatTimeAgo(new Date(lastSearch.timestamp))}
-              </Typography>
-            </Box>
-          )}
         </>
       )}
 
@@ -459,46 +500,35 @@ export default function JourneyResults() {
       )}
 
       {/* Results */}
-      {!isLoading && !error && journeyResults?.journeys && (
-        <>
-          {journeyResults.journeys.length === 0 ? (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              No journeys found. Try different stations or a different time.
-            </Alert>
-          ) : (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Found {journeyResults.journeys.length}{' '}
-                {journeyResults.journeys.length === 1 ? 'journey' : 'journeys'}{' '}
-                (sorted by earliest arrival)
-              </Typography>
-              <Stack spacing={2}>
-                {/* Sort journeys by earliest arrival time and highlight the one that arrives first */}
-                {(() => {
-                  // Sort journeys by arrival time
-                  const sortedJourneys = [...journeyResults.journeys].sort(
-                    (a, b) => parseSNCFDateTime(a.arrival_date_time).getTime() - parseSNCFDateTime(b.arrival_date_time).getTime(),
-                  );
+      {!isLoading && !error && journeyResults?.journeys && journeyResults.journeys.length >= 0 &&
+        <Box sx={{ mt: 2 }}>
 
-                  // The fastest journey is the one that arrives first (first in the sorted array)
-                  const fastestJourney = sortedJourneys.length > 0 ? sortedJourneys[0] : null;
+          <Stack spacing={2}>
+            {/* Sort journeys by earliest arrival time and highlight the one that arrives first */}
+            {(() => {
+              // Sort journeys by arrival time
+              const sortedJourneys = [...journeyResults.journeys].sort(
+                (a, b) => parseSNCFDateTime(a.arrival_date_time).getTime() - parseSNCFDateTime(b.arrival_date_time).getTime(),
+              );
 
-                  return sortedJourneys.map((journey, index) => (
-                    <JourneyCard
-                      key={index}
-                      journey={journey}
-                      isFastest={Boolean(
-                        fastestJourney &&
-                          journey.arrival_date_time === fastestJourney.arrival_date_time,
-                      )}
-                    />
-                  ));
-                })()}
-              </Stack>
-            </Box>
-          )}
-        </>
-      )}
+              // The fastest journey is the one that arrives first (first in the sorted array)
+              const fastestJourney = sortedJourneys.length > 0 ? sortedJourneys[0] : null;
+
+              return sortedJourneys.map((journey, index) => (
+                <JourneyCard
+                  key={index}
+                  journey={journey}
+                  isFastest={Boolean(
+                    fastestJourney &&
+                    journey.arrival_date_time === fastestJourney.arrival_date_time,
+                  )}
+                />
+              ));
+            })()}
+          </Stack>
+        </Box>
+      }
+
     </Paper>
   );
 }
