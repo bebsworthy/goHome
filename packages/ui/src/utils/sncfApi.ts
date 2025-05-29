@@ -196,7 +196,7 @@ export class SNCFApiService {
   async getDepartures(
     stopId: string,
     fromDateTime?: string,
-    count: number = 10
+    count: number = 50
   ): Promise<Departure[]> {
     console.log(`[API] Fetching departures from ${stopId}`);
 

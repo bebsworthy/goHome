@@ -15,26 +15,27 @@ import type {
     Departure, 
     DeparturesResponse 
 } from './types.js';
+import { logApiCall } from './utils/logger.js';
+import { toDate, formatInTimeZone } from 'date-fns-tz';
 
 const COVERAGE = 'sncf';
+const FRANCE_TIMEZONE = 'Europe/Paris';
 
 // --- Helper Functions ---
 
 /**
  * Formats a JavaScript Date object into SNCF's datetime string format (YYYYMMDDTHHmmss).
- * @param date The JavaScript Date object to format.
- * @returns The formatted datetime string.
+ * @param date The JavaScript Date object to format (in local timezone).
+ * @returns The formatted datetime string in France timezone.
  */
 function toSNCFDateTime(date: Date): string {
-    return date.toISOString()
-        .replace(/[-:]/g, '')  // Remove dashes and colons
-        .replace(/\.\d+Z$/, ''); // Remove milliseconds and Z
+    return formatInTimeZone(date, FRANCE_TIMEZONE, "yyyyMMdd'T'HHmmss");
 }
 
 /**
  * Parses SNCF's datetime string (YYYYMMDDTHHmmss) into a JavaScript Date object.
  * @param dateTimeStr The SNCF datetime string.
- * @returns A JavaScript Date object.
+ * @returns A JavaScript Date object in the local timezone.
  */
 function parseSNCFDateTime(dateTimeStr: string): Date {
     const year = parseInt(dateTimeStr.slice(0, 4));
@@ -44,8 +45,8 @@ function parseSNCFDateTime(dateTimeStr: string): Date {
     const minute = parseInt(dateTimeStr.slice(11, 13));
     const second = parseInt(dateTimeStr.slice(13, 15));
 
-    // SNCF typically uses UTC or the local time of the covered area.
-    return new Date(Date.UTC(year, month, day, hour, minute, second));
+    // Create a Date object in France timezone and convert to UTC
+    return toDate(new Date(year, month, day, hour, minute, second), { timeZone: FRANCE_TIMEZONE });
 }
 
 // --- SNCF API Endpoints ---
@@ -140,11 +141,26 @@ export namespace SNCF {
 
         const departuresUrl = `${baseUrl}/coverage/${COVERAGE}/stop_areas/${stopAreaId}/departures?${params.toString()}`;
 
-        return fetch(departuresUrl, {
+        const response = await fetch(departuresUrl, {
             headers: {
                 'Authorization': apiKey
             }
         });
+
+        // Clone the response so we can read it twice (once for logging, once for returning)
+        const responseClone = response.clone();
+
+        // Log the API call if the response is OK
+        if (response.ok) {
+            try {
+                const responseData = await responseClone.json();
+                await logApiCall('departures', departuresUrl, responseData);
+            } catch (error) {
+                console.error('[SNCF] Error logging API call:', error);
+            }
+        }
+
+        return response;
     }
 }
 
