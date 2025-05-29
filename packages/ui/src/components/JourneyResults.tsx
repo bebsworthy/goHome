@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import {
   AccessTime as AccessTimeIcon,
@@ -256,12 +256,13 @@ const TransfersInfo: React.FC<{ transfers: number }> = ({ transfers }) => {
  * Displays a single section of a journey
  */
 const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
+  const [showStops, setShowStops] = useState(true);
   const modeColor = getModeColor(section.mode, section.display_informations);
   const fromName = section.from.stop_point?.name || section.from.name || 'Unknown location';
   const toName = section.to.stop_point?.name || section.to.name || 'Unknown location';
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', my: 1 }}>
       <Box
         sx={{
           width: 8,
@@ -269,6 +270,7 @@ const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
           borderRadius: '50%',
           bgcolor: modeColor,
           mr: 1,
+          mt: 1,
         }}
       />
       <Box sx={{ flexGrow: 1 }}>
@@ -290,22 +292,63 @@ const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
               mx: 2,
             }}
           />
-          <Chip
-            size="small"
-            label={section.display_informations?.commercial_mode || section.mode || section.type}
-            sx={{
-              bgcolor: modeColor,
-              color: 'white',
-              fontWeight: 'bold',
-              mr: 1,
-            }}
-          />
-          {section.display_informations?.label && (
-            <Chip size="small" label={section.display_informations.label} variant="outlined" sx={{ mr: 1 }} />
-          )}
-          <Typography variant="caption" color="text.secondary">
-            {formatDuration(section.duration || 0)}
-          </Typography>
+          <Box sx={{ flexGrow: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Chip
+                size="small"
+                label={section.display_informations?.commercial_mode || section.mode || section.type}
+                sx={{
+                  bgcolor: modeColor,
+                  color: 'white',
+                  fontWeight: 'bold',
+                  mr: 1,
+                }}
+              />
+              {section.display_informations?.label && (
+                <Chip size="small" label={section.display_informations.label} variant="outlined" sx={{ mr: 1 }} />
+              )}
+              <Typography variant="caption" color="text.secondary">
+                {formatDuration(section.duration || 0)}
+              </Typography>
+              {section.stop_date_times && section.stop_date_times.length > 0 && (
+              <>
+                <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <ExpandButton
+                    expanded={showStops}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowStops(!showStops);
+                    }}
+                  />
+                </Box>
+              </>
+              )}
+            </Box>
+
+            {section.stop_date_times && section.stop_date_times.length > 0 && (
+                <Collapse in={showStops}>
+                  <Box sx={{ mt: 1, ml: 2 }}>
+                    {section.stop_date_times.map((stop, index: number) => (
+                      <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                        <Box
+                          sx={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            bgcolor: modeColor,
+                            opacity: 0.5,
+                            mr: 1,
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {formatTime(stop.departure_date_time)} - {stop.stop_point.name}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Collapse>
+            )}
+          </Box>
         </Box>
         <Typography variant="body2" color="text.secondary">
           {formatTime(section.arrival_date_time)} - {toName}
@@ -375,7 +418,6 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
                     arrivalDateTime={journey.arrival_date_time}
                     isFastest={isFastest}
                   />
-                  
                 </Box>
 
                 <Box
@@ -395,12 +437,14 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
             {expanded && (
               <Grid item xs={12}>
                 <Divider />
-                {journey.sections.map((section, index) => (
-                  <React.Fragment key={index}>
-                    <JourneySectionItem section={section} />
-                    {index < journey.sections.length - 1 && <Divider sx={{ my: 1 }} />}
-                  </React.Fragment>
-                ))}
+                {journey.sections
+                  .filter(section => section.mode !== 'walking')
+                  .map((section, index, filteredSections) => (
+                    <React.Fragment key={index}>
+                      <JourneySectionItem section={section} />
+                      {index < filteredSections.length - 1 && <Divider sx={{ my: 1 }} />}
+                    </React.Fragment>
+                  ))}
                 <Divider />
                 <DisplayJSON data={journey} />
               </Grid>

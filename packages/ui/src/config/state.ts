@@ -43,6 +43,14 @@ export interface Section {
   departure_date_time: string;
   arrival_date_time: string;
   display_informations?: DisplayInformation;
+  stop_date_times?: Array<{
+    departure_date_time: string;
+    arrival_date_time: string;
+    stop_point: {
+      name: string;
+      id: string;
+    };
+  }>;
 }
 
 export interface FeedPublisher {
