@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Typography, List, Card, Space, Spin, Tag, DatePicker, Radio, Button, message } from 'antd';
-import { EditOutlined } from '@ant-design/icons';
+import { Typography, List, Card, Space, Spin, Tag, DatePicker, Radio, Button, message, Modal } from 'antd';
+import { EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useEvents } from '@/hooks/useEvents';
 import dayjs from 'dayjs';
 import type { Event } from '@/utils/localeventApi';
@@ -54,7 +54,16 @@ function LocalEventPage() {
   const [dateRange, setDateRange] = useState<DateRange<dayjs.Dayjs>>(getDefaultDateRange());
   const [quickSelect, setQuickSelect] = useState<QuickSelect>('next15Days');
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const { data: events = [], isLoading, error, updateEvent, isUpdating } = useEvents(formatDateRange(dateRange));
+  const [modal, contextHolder] = Modal.useModal();
+  const { 
+    data: events = [], 
+    isLoading, 
+    error, 
+    updateEvent, 
+    deleteEvent, 
+    isUpdating, 
+    isDeleting
+  } = useEvents(formatDateRange(dateRange));
 
   const handleQuickSelectChange = (value: QuickSelect) => {
     setQuickSelect(value);
@@ -94,6 +103,27 @@ function LocalEventPage() {
     }
   };
 
+  const handleDeleteClick = (event: Event) => {
+    modal.confirm({
+      title: 'Delete Event',
+      icon: <ExclamationCircleOutlined />,
+      content: `Are you sure you want to delete "${event.title}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await deleteEvent(event.id);
+          message.success('Event deleted successfully');
+        } catch (err) {
+          const error = err as Error;
+          message.error('Failed to delete event');
+          console.error('Failed to delete event:', error);
+        }
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
@@ -114,6 +144,7 @@ function LocalEventPage() {
 
   return (
     <div style={{ padding: 24 }}>
+      {contextHolder}
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div>
           <Title level={2}>Local Events</Title>
@@ -144,13 +175,23 @@ function LocalEventPage() {
                 <Card 
                   style={{ width: '100%' }}
                   extra={
-                    <Button
-                      icon={<EditOutlined />}
-                      onClick={() => handleEditClick(event)}
-                      loading={isUpdating && editingEvent?.id === event.id}
-                    >
-                      Edit
-                    </Button>
+                    <Space>
+                      <Button
+                        icon={<EditOutlined />}
+                        onClick={() => handleEditClick(event)}
+                        loading={isUpdating}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDeleteClick(event)}
+                        loading={isDeleting}
+                      >
+                        Delete
+                      </Button>
+                    </Space>
                   }
                 >
                   <Title level={4} style={{ marginTop: 0 }}>{event.title}</Title>

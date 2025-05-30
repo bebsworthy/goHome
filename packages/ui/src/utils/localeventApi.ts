@@ -65,3 +65,19 @@ export async function updateEvent(event: Event): Promise<Event> {
     throw error;
   }
 }
+
+export async function deleteEvent(eventId: number): Promise<void> {
+  try {
+    const response = await fetch(`${API_URL}/events/${eventId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to delete event: ${JSON.stringify(error)}`);
+    }
+  } catch (error) {
+    console.error('Error deleting event:', error);
+    throw error;
+  }
+}
