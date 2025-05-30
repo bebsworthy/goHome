@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Typography, List, ListItem, ListItemText, Paper, Box, Chip, CircularProgress, Stack } from '@mui/material';
+import { Typography, List, Card, Space, Spin, Tag, DatePicker } from 'antd';
 import { useEvents } from '@/hooks/useEvents';
 import dayjs from 'dayjs';
+import type { Event } from '@/utils/localeventApi';
+const { RangePicker } = DatePicker;
+const { Title, Text } = Typography;
 
 type DateRange<T> = [T | null, T | null];
 
@@ -37,85 +40,77 @@ function LocalEventPage() {
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <CircularProgress />
-      </Box>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <Spin size="large" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p={3}>
-        <Typography color="error" variant="h6">
+      <div style={{ padding: 24 }}>
+        <Text type="danger" style={{ fontSize: 16 }}>
           Error: {error instanceof Error ? error.message : 'An error occurred'}
-        </Typography>
-      </Box>
+        </Text>
+      </div>
     );
   }
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" gutterBottom>Local Events</Typography>
-      <Typography variant="subtitle1" gutterBottom color="textSecondary">
-        Next 15 days
-      </Typography>
+    <div style={{ padding: 24 }}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <div>
+          <Title level={2}>Local Events</Title>
+          <Space direction="vertical" size="small">
+            <RangePicker
+              value={dateRange as [dayjs.Dayjs, dayjs.Dayjs]}
+              onChange={(dates) => setDateRange(dates as DateRange<dayjs.Dayjs>)}
+              allowClear={false}
+              style={{ marginBottom: 16 }}
+            />
+            <Text type="secondary">Select date range to view events</Text>
+          </Space>
+        </div>
 
-      {events.length === 0 ? (
-        <Typography variant="body1">No events found for the selected period.</Typography>
-      ) : (
-        <List>
-          {events.map((event) => (
-            <Paper key={event.id} sx={{ mb: 2 }}>
-              <ListItem alignItems="flex-start">
-                <ListItemText
-                  primary={
-                    <Typography variant="h6" component="div">
-                      {event.title}
-                    </Typography>
-                  }
-                  secondary={
-                    <Box>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
-                        {formatDate(event.dates)}
-                        {event.startTime && (
-                          <> • {formatTime(event.startTime, event.endTime)}</>
-                        )}
-                      </Typography>
-                      <Typography variant="body1" paragraph>
-                        {event.location}
-                        {event.city && <>, {event.city}</>}
-                      </Typography>
-                      {event.description && (
-                        <Typography variant="body2" color="textSecondary" paragraph>
-                          {event.description}
-                        </Typography>
+        {events.length === 0 ? (
+          <Text>No events found for the selected period.</Text>
+        ) : (
+          <List
+            dataSource={events}
+            renderItem={(event) => (
+              <List.Item key={event.id}>
+                <Card style={{ width: '100%' }}>
+                  <Title level={4} style={{ marginTop: 0 }}>{event.title}</Title>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Text type="secondary">
+                      {formatDate(event.dates)}
+                      {event.startTime && (
+                        <> • {formatTime(event.startTime, event.endTime)}</>
                       )}
-                      <Box sx={{ mt: 1 }}>
-                        {event.price && (
-                          <Chip 
-                            label={event.price} 
-                            size="small" 
-                            sx={{ mr: 1, mb: 1 }} 
-                          />
-                        )}
-                        {event.category && (
-                          <Chip 
-                            label={event.category} 
-                            size="small" 
-                            variant="outlined"
-                            sx={{ mr: 1, mb: 1 }} 
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                  }
-                />
-              </ListItem>
-            </Paper>
-          ))}
-        </List>
-      )}
-    </Box>
+                    </Text>
+                    <Text>
+                      {event.location}
+                      {event.city && <>, {event.city}</>}
+                    </Text>
+                    {event.description && (
+                      <Text type="secondary">{event.description}</Text>
+                    )}
+                    <Space size={[0, 8]} wrap>
+                      {event.price && (
+                        <Tag color="blue">{event.price}</Tag>
+                      )}
+                      {event.category && (
+                        <Tag>{event.category}</Tag>
+                      )}
+                    </Space>
+                  </Space>
+                </Card>
+              </List.Item>
+            )}
+          />
+        )}
+      </Space>
+    </div>
   );
 }
 
