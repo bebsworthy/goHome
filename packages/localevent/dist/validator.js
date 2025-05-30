@@ -19,4 +19,3 @@ export const eventSchema = z.object({
     phone: z.string().nullish(),
     rawText: z.string().nullish(),
 });
-//# sourceMappingURL=validator.js.map

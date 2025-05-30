@@ -1,4 +1,4 @@
-import { EventInformation } from "./types";
+import { EventInformation } from "./types.js";
 
 const API_URL = `http://localhost:${process.env.API_PORT || 3000}`;
 
@@ -31,8 +31,8 @@ export async function saveEvent(eventInfo: EventInformation): Promise<void> {
       throw new Error(`Failed to save event: ${JSON.stringify(error)}`);
     }
 
-    const savedEvent = await response.json();
-    console.log(`Event "${eventInfo.Title}" saved with ID ${savedEvent.id}`);
+    const savedEvent = await response.json() as any;
+    console.log(`Event "${eventInfo.title}" saved with ID ${savedEvent.id}`);
   } catch (error) {
     console.error('Error saving event to database:', error);
     throw error;

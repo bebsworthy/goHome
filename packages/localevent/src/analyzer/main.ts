@@ -1,5 +1,4 @@
 
-import { processImagesDirectory  } from "./image_converter";
-
+import { processImagesDirectory  } from "./image_converter.js";
 
 processImagesDirectory()

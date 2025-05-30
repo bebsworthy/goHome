@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import OpenAI from 'openai';
-import { EventInformation } from "./types";
-import { saveEvent } from './api_client';
+import { EventInformation } from "./types.js";
+import { saveEvent } from './api_client.js';
 
 // Load environment variables
 import dotenv from 'dotenv';

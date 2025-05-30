@@ -1,4 +1,3 @@
-import { EventInformation } from "./types";
 const API_URL = `http://localhost:${process.env.API_PORT || 3000}`;
 export async function saveEvent(eventInfo) {
     try {
@@ -28,11 +27,10 @@ export async function saveEvent(eventInfo) {
             throw new Error(`Failed to save event: ${JSON.stringify(error)}`);
         }
         const savedEvent = await response.json();
-        console.log(`Event "${eventInfo.Title}" saved with ID ${savedEvent.id}`);
+        console.log(`Event "${eventInfo.title}" saved with ID ${savedEvent.id}`);
     }
     catch (error) {
         console.error('Error saving event to database:', error);
         throw error;
     }
 }
-//# sourceMappingURL=api_client.js.map

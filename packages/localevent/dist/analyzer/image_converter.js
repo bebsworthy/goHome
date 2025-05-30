@@ -1,8 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import OpenAI from 'openai';
-import { EventInformation } from "./types";
-import { saveEvent } from './api_client';
+import { saveEvent } from './api_client.js';
 // Load environment variables
 import dotenv from 'dotenv';
 dotenv.config();
@@ -135,4 +134,3 @@ export async function processImagesDirectory() {
     }
     console.log('\nImage processing completed.');
 }
-//# sourceMappingURL=image_converter.js.map

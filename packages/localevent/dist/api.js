@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { PrismaClient } from './generated/prisma/client';
-import { dateRangeSchema, eventSchema } from './validator';
+import { PrismaClient } from './generated/prisma/client.js';
+import { dateRangeSchema, eventSchema } from './validator.js';
 const app = new Hono();
 const prisma = new PrismaClient();
 // Format date as YYYY-MM-DD
@@ -145,4 +145,3 @@ app.delete('/events/:id', async (c) => {
     }
 });
 export { app };
-//# sourceMappingURL=api.js.map
