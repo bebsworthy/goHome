@@ -8,7 +8,7 @@ import type { Departure, DeparturesResponse } from './types';
 export class SNCFApiService {
   private static instance: SNCFApiService;
   // Use relative URL to leverage Vite's proxy configuration
-  private readonly BASE_URL = '/api';
+  private readonly BASE_URL = '/api/sncf';
 
   private constructor() {
     // No initialization needed

@@ -22,9 +22,9 @@ const routes: Routes = [
     icon: TrainIcon,
   },
   {
-    component: asyncComponentLoader(() => import('@/pages/Page2')),
-    path: '/history',
-    title: 'History',
+    component: asyncComponentLoader(() => import('@/pages/LocalEvents')),
+    path: '/local-events',
+    title: 'Local Events',
     icon: HistoryIcon,
   },
   {
