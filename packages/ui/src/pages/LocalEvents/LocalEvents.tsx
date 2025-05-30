@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Typography, List, Card, Space, Spin, Tag, DatePicker } from 'antd';
+import { Typography, List, Card, Space, Spin, Tag, DatePicker, Radio } from 'antd';
 import { useEvents } from '@/hooks/useEvents';
 import dayjs from 'dayjs';
 import type { Event } from '@/utils/localeventApi';
@@ -7,6 +7,19 @@ const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 
 type DateRange<T> = [T | null, T | null];
+type QuickSelect = 'custom' | 'thisWeek' | 'thisWeekend' | 'next15Days';
+
+function getThisWeekRange(): DateRange<dayjs.Dayjs> {
+  const start = dayjs().startOf('week');
+  const end = dayjs().endOf('week');
+  return [start, end];
+}
+
+function getThisWeekendRange(): DateRange<dayjs.Dayjs> {
+  const start = dayjs().day(6); // Saturday
+  const end = dayjs().day(7); // Sunday
+  return [start, end];
+}
 
 function getDefaultDateRange(): DateRange<dayjs.Dayjs> {
   const start = dayjs();
@@ -36,7 +49,27 @@ function formatTime(startTime?: string, endTime?: string): string {
 
 function LocalEventPage() {
   const [dateRange, setDateRange] = useState<DateRange<dayjs.Dayjs>>(getDefaultDateRange());
+  const [quickSelect, setQuickSelect] = useState<QuickSelect>('next15Days');
   const { data: events = [], isLoading, error } = useEvents(formatDateRange(dateRange));
+
+  const handleQuickSelectChange = (value: QuickSelect) => {
+    setQuickSelect(value);
+    switch (value) {
+      case 'thisWeekend':
+        setDateRange(getThisWeekendRange());
+        break;
+      case 'next15Days':
+        setDateRange(getDefaultDateRange());
+        break;
+      // No default case needed as 'custom' doesn't change the date range
+    }
+  };
+
+  const handleRangePickerChange = (dates: any) => {
+    if (dates) {
+      setDateRange(dates as DateRange<dayjs.Dayjs>);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -61,14 +94,20 @@ function LocalEventPage() {
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div>
           <Title level={2}>Local Events</Title>
-          <Space direction="vertical" size="small">
-            <RangePicker
-              value={dateRange as [dayjs.Dayjs, dayjs.Dayjs]}
-              onChange={(dates) => setDateRange(dates as DateRange<dayjs.Dayjs>)}
-              allowClear={false}
-              style={{ marginBottom: 16 }}
-            />
-            <Text type="secondary">Select date range to view events</Text>
+          <Space direction="vertical" size="middle">
+            <Radio.Group value={quickSelect} onChange={(e) => handleQuickSelectChange(e.target.value)}>
+              <Radio.Button value="next15Days">Next 15 Days</Radio.Button>
+              <Radio.Button value="thisWeekend">This Weekend</Radio.Button>
+              <Radio.Button value="custom">Custom Dates</Radio.Button>
+            </Radio.Group>
+            {quickSelect === 'custom' && (
+              <RangePicker
+                value={dateRange as [dayjs.Dayjs, dayjs.Dayjs]}
+                onChange={handleRangePickerChange}
+                allowClear={false}
+                style={{ width: '100%', maxWidth: 400 }}
+              />
+            )}
           </Space>
         </div>
 
