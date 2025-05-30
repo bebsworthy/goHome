@@ -35,6 +35,7 @@ export default function SearchForm() {
     destination,
     isLoading,
     hasValidSearch,
+    isUsingSavedData,
     setOrigin,
     setDestination,
     searchJourneys,
@@ -42,16 +43,19 @@ export default function SearchForm() {
     clearSavedSearch,
   } = useJourneyQuery();
 
-  // Initialize isExpanded based on whether we need input
-  const [isExpanded, setIsExpanded] = useState(!origin || !destination);
+  // Initialize isExpanded based on whether we need input or are using saved data
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Update isExpanded when origin or destination changes
+  // Update isExpanded when origin, destination, or saved data status changes
   useEffect(() => {
-    // If either origin or destination is missing, expand the form
     if (!origin || !destination) {
+      // Always expand if we don't have both stations
       setIsExpanded(true);
+    } else if (isUsingSavedData) {
+      // If we're using saved data and have both stations, collapse the form
+      setIsExpanded(false);
     }
-  }, [origin, destination]);
+  }, [origin, destination, isUsingSavedData]);
 
   // Function to handle search submission
   const handleSearch = useCallback(() => {
@@ -99,7 +103,7 @@ export default function SearchForm() {
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
-          <Tooltip title="Swap stations">
+            <Tooltip title="Swap stations">
               <IconButton
                 onClick={swapStations}
                 disabled={!origin && !destination}
@@ -134,20 +138,19 @@ export default function SearchForm() {
       )}
 
       {/* Expanded View */}
-      <Collapse timeout={0} in={isExpanded}>
-       
+      <Collapse in={isExpanded}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h5" component="h2">
             Trip
           </Typography>
           <Stack direction="row" spacing={1}>
             <IconButton
-                color="primary"
-                size="small"
-                onClick={handleClearSavedSearch}
-              >
-                <ClearIcon />
-              </IconButton>
+              color="primary"
+              size="small"
+              onClick={handleClearSavedSearch}
+            >
+              <ClearIcon />
+            </IconButton>
             <Tooltip title="Swap stations">
               <IconButton
                 onClick={swapStations}
