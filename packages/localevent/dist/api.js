@@ -1,12 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.app = void 0;
-const hono_1 = require("hono");
-const zod_1 = require("zod");
-const client_1 = require("./generated/prisma/client");
-const app = new hono_1.Hono();
-exports.app = app;
-const prisma = new client_1.PrismaClient();
+import { Hono } from 'hono';
+import { z } from 'zod';
+import { PrismaClient } from './generated/prisma/client';
+import { dateRangeSchema, eventSchema } from './validator';
+const app = new Hono();
+const prisma = new PrismaClient();
 // Format date as YYYY-MM-DD
 function formatDate(date) {
     return date.toISOString().split('T')[0];
@@ -18,26 +15,6 @@ function formatEventResponse(event) {
         dates: event.dates.map((d) => formatDate(d)),
     };
 }
-// Validation schemas
-const dateRangeSchema = zod_1.z.object({
-    start: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-    end: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-});
-const eventSchema = zod_1.z.object({
-    title: zod_1.z.string().min(1, 'Title is required'),
-    dates: zod_1.z.array(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates must be in YYYY-MM-DD format')),
-    startTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/, 'Start time must be in HH:MM format').optional(),
-    endTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/, 'End time must be in HH:MM format').optional(),
-    location: zod_1.z.string().min(1, 'Location is required'),
-    city: zod_1.z.string().optional(),
-    description: zod_1.z.string().optional(),
-    organizer: zod_1.z.string().optional(),
-    price: zod_1.z.string().optional(),
-    category: zod_1.z.string().optional(),
-    email: zod_1.z.string().email().optional(),
-    phone: zod_1.z.string().optional(),
-    rawText: zod_1.z.string().optional(),
-});
 // Get events within a date range
 app.get('/events', async (c) => {
     try {
@@ -68,7 +45,7 @@ app.get('/events', async (c) => {
         });
     }
     catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
+        if (error instanceof z.ZodError) {
             return c.json({ error: error.errors }, 400);
         }
         console.error('Error fetching events:', error);
@@ -109,7 +86,7 @@ app.post('/events', async (c) => {
         return c.json(formatEventResponse(event), 201);
     }
     catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
+        if (error instanceof z.ZodError) {
             return c.json({ error: 'Validation error', details: error.errors }, 400);
         }
         console.error('Error creating event:', error);
@@ -140,7 +117,7 @@ app.put('/events/:id', async (c) => {
         return c.json(formatEventResponse(updatedEvent));
     }
     catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
+        if (error instanceof z.ZodError) {
             return c.json({ error: 'Validation error', details: error.errors }, 400);
         }
         console.error('Error updating event:', error);
@@ -167,3 +144,5 @@ app.delete('/events/:id', async (c) => {
         return c.json({ error: 'Internal server error' }, 500);
     }
 });
+export { app };
+//# sourceMappingURL=api.js.map
