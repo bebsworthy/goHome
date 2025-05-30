@@ -1,8 +1,8 @@
 import { Box, Card, CardContent, Typography, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
-import type { Departure } from '../utils/types';
+import type { Departure } from '../../utils/types';
 import { useState, useMemo } from 'react';
 import { toDate, formatInTimeZone } from 'date-fns-tz';
-import DisplayJSON from './DisplayJSON';
+import DisplayJSON from '../DisplayJSON';
 
 const FRANCE_TIMEZONE = 'Europe/Paris';
 

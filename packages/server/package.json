@@ -20,7 +20,8 @@
     "dotenv": "^16.5.0",
     "hono": "^4.7.10",
     "mime-types": "^2.1.35",
-    "zod": "^3.25.17"
+    "zod": "^3.25.17",
+    "@gohome/localevent": "workspace:*"
   },
   "devDependencies": {
     "@types/dotenv": "^8.2.3",

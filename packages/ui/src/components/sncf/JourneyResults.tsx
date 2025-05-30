@@ -33,9 +33,9 @@ import {
   isLoadingAtom,
   journeyResultsAtom,
   lastSearchAtom,
-} from '../config/state';
+} from '../../config/state';
 import { parseSNCFDateTime } from '@/utils/dateTime';
-import DisplayJSON from './DisplayJSON';
+import DisplayJSON from '../DisplayJSON';
 
 /**
  * Format a date as a human-readable "time ago" string

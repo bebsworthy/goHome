@@ -3,9 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
 import { debounce } from '@mui/material/utils';
 
-import { Station } from '../config/state';
-import { indexedDBService } from '../utils/indexedDB';
-import { sncfApiService } from '../utils/sncfApi';
+import { Station } from '../../config/state';
+import { indexedDBService } from '../../utils/indexedDB';
+import { sncfApiService } from '../../utils/sncfApi';
 
 interface StationAutocompleteProps {
   label: string;

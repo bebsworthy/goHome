@@ -19,7 +19,7 @@ import {
   Collapse,
 } from '@mui/material';
 
-import { useJourneyQuery } from '../hooks/useJourneyQuery';
+import { useJourneyQuery } from '../../hooks/useJourneyQuery';
 import StationAutocomplete from './StationAutocomplete';
 
 /**

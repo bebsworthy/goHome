@@ -1,7 +1,7 @@
 import { Box, Container } from '@mui/material';
 
-import JourneyResults from '../../components/JourneyResults';
-import SearchForm from '../../components/SearchForm';
+import JourneyResults from '../../components/sncf/JourneyResults';
+import SearchForm from '../../components/sncf/SearchForm';
 
 /**
  * Home Page Component
