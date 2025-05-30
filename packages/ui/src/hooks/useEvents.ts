@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Event, getEvents, updateEvent, deleteEvent } from '@/utils/localeventApi';
+import { getEvents, updateEvent, deleteEvent } from '@/utils/localeventApi';
 
 export interface DateRange {
   start: string;

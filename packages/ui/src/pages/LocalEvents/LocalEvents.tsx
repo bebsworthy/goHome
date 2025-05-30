@@ -12,12 +12,6 @@ const { Title, Text } = Typography;
 type DateRange<T> = [T | null, T | null];
 type QuickSelect = 'custom' | 'thisWeek' | 'thisWeekend' | 'next15Days';
 
-function getThisWeekRange(): DateRange<dayjs.Dayjs> {
-  const start = dayjs().startOf('week');
-  const end = dayjs().endOf('week');
-  return [start, end];
-}
-
 function getThisWeekendRange(): DateRange<dayjs.Dayjs> {
   const start = dayjs().day(6); // Saturday
   const end = dayjs().day(7); // Sunday
