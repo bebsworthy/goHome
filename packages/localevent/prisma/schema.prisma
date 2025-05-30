@@ -20,7 +20,7 @@ model Event {
   dates       DateTime[]
   startTime   String?
   endTime     String?
-  location    String
+  location    String?
   city        String?
   description String?
   organizer   String?
