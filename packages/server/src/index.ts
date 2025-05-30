@@ -44,14 +44,14 @@ const publicDir = relative(process.cwd(), absolutePublicDir);
 console.log(`[SERVER] Absolute public dir: ${absolutePublicDir}`);
 console.log(`[SERVER] Relative public dir for serveStatic: ${publicDir}`);
 
-app.route('/api', sncfApi);
-app.route('/localevent', localeventApi);
+app.route('/api/sncf', sncfApi);
+app.route('/api/local', localeventApi);
 
 // Serve static files for all non-API routes
 app.use('*', async (c, next) => {
   // Skip if path starts with /api
   if (c.req.path.startsWith('/api')
-      || c.req.path.startsWith('/localevent')
+      || c.req.path.startsWith('/local')
   ) {
     console.log(`[SERVER] Skipping static file serving for API route: ${c.req.path}`);
     return next();
