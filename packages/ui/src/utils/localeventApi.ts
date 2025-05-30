@@ -43,3 +43,25 @@ export async function getEvents(startDate: string, endDate: string): Promise<Eve
     throw error;
   }
 }
+
+export async function updateEvent(event: Event): Promise<Event> {
+  try {
+    const response = await fetch(`${API_URL}/events/${event.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to update event: ${JSON.stringify(error)}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating event:', error);
+    throw error;
+  }
+}

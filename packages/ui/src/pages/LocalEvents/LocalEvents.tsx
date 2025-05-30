@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Typography, List, Card, Space, Spin, Tag, DatePicker, Radio } from 'antd';
+import { Typography, List, Card, Space, Spin, Tag, DatePicker, Radio, Button, message } from 'antd';
+import { EditOutlined } from '@ant-design/icons';
 import { useEvents } from '@/hooks/useEvents';
 import dayjs from 'dayjs';
 import type { Event } from '@/utils/localeventApi';
+import { EditEventForm } from './EditEventForm';
+
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 
@@ -50,7 +53,8 @@ function formatTime(startTime?: string, endTime?: string): string {
 function LocalEventPage() {
   const [dateRange, setDateRange] = useState<DateRange<dayjs.Dayjs>>(getDefaultDateRange());
   const [quickSelect, setQuickSelect] = useState<QuickSelect>('next15Days');
-  const { data: events = [], isLoading, error } = useEvents(formatDateRange(dateRange));
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const { data: events = [], isLoading, error, updateEvent, isUpdating } = useEvents(formatDateRange(dateRange));
 
   const handleQuickSelectChange = (value: QuickSelect) => {
     setQuickSelect(value);
@@ -68,6 +72,25 @@ function LocalEventPage() {
   const handleRangePickerChange = (dates: any) => {
     if (dates) {
       setDateRange(dates as DateRange<dayjs.Dayjs>);
+    }
+  };
+
+  const handleEditClick = (event: Event) => {
+    setEditingEvent(event);
+  };
+
+  const handleEditCancel = () => {
+    setEditingEvent(null);
+  };
+
+  const handleEditSave = async (updatedEvent: Event) => {
+    try {
+      await updateEvent(updatedEvent);
+      message.success('Event updated successfully');
+      setEditingEvent(null);
+    } catch (error) {
+      message.error('Failed to update event');
+      console.error('Failed to update event:', error);
     }
   };
 
@@ -118,7 +141,18 @@ function LocalEventPage() {
             dataSource={events}
             renderItem={(event) => (
               <List.Item key={event.id}>
-                <Card style={{ width: '100%' }}>
+                <Card 
+                  style={{ width: '100%' }}
+                  extra={
+                    <Button
+                      icon={<EditOutlined />}
+                      onClick={() => handleEditClick(event)}
+                      loading={isUpdating && editingEvent?.id === event.id}
+                    >
+                      Edit
+                    </Button>
+                  }
+                >
                   <Title level={4} style={{ marginTop: 0 }}>{event.title}</Title>
                   <Space direction="vertical" size="small" style={{ width: '100%' }}>
                     <Text type="secondary">
@@ -149,6 +183,15 @@ function LocalEventPage() {
           />
         )}
       </Space>
+
+      {editingEvent && (
+        <EditEventForm
+          event={editingEvent}
+          open={true}
+          onCancel={handleEditCancel}
+          onSave={handleEditSave}
+        />
+      )}
     </div>
   );
 }
