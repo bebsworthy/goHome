@@ -4,7 +4,7 @@ import {
   AccessTime as AccessTimeIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
-  SwapVert as SwapVertIcon,
+  TransferWithinAStation as TransferWithinAStationIcon
 } from '@mui/icons-material';
 import {
   Alert,
@@ -15,7 +15,7 @@ import {
   Chip,
   Collapse,
   Divider,
-  Grid,
+  Grid2 as Grid,
   IconButton,
   LinearProgress,
   Paper,
@@ -120,72 +120,138 @@ const getModeColor = (mode?: string, displayInfo?: DisplayInformation): string =
   return '#757575'; // Default gray
 };
 
+
+/**
+ * JourneySectionLabel Component
+ * Displays the appropriate label for a journey section based on its display information
+ */
+const JourneySectionLabel: React.FC<{ section: Section }> = ({ section }) => {
+  const displayInfo = section.display_informations;
+  if (!displayInfo) return null;
+
+  const modeColor = getModeColor(section.mode, section.display_informations);
+
+  // For train we want commercial mode
+  let label = displayInfo.commercial_mode || section.mode || section.type;
+
+  // For RER we want the label
+  if (displayInfo.physical_mode?.startsWith('RER') && displayInfo.label) {
+    label = displayInfo.label;
+  }
+
+  return <Box sx={{ display: 'flex', alignItems: 'center', whiteSpace: "nowrap" }}>
+  <Box
+    sx={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      bgcolor: modeColor,
+      color: 'white',
+      borderRadius: '5px',
+      height: 24,
+      fontSize: '0.75rem',
+      fontWeight: 'bold',
+      pr: 1,
+      pl: 1,
+      mr: 1,
+    }}
+  >
+    {label}
+  </Box>
+  <Typography variant="body2" color="text.secondary">{section.display_informations?.headsign}</Typography>
+  </Box>
+}
+
 /**
  * TripSummary Component
  * Displays key information about the first and last non-walking sections of a journey
  */
-const TripSummary: React.FC<{ sections: Section[] }> = ({ sections }) => {
+const JourneySectionSummary: React.FC<{ sections: Section[], transfers: number, durationInSeconds: number }> = ({ sections, transfers, durationInSeconds }) => {
   // Find first and last non-walking sections
-  const nonWalkingSections = sections.filter(section => section.mode !== 'walking');
+  const nonWalkingSections = sections.filter(section => !SECTION_FILTERS.includes((section.type)));
   if (!nonWalkingSections.length) return null;
 
   const firstSection = nonWalkingSections[0];
   const lastSection = nonWalkingSections[nonWalkingSections.length - 1];
-  const modeColor = getModeColor(firstSection.mode, firstSection.display_informations);
-
-  // Helper component for separator dot
-  // const Separator = () => <span>&#160;&#183;&#160;</span>;
-
-  const Label = () => {
-    const displayInfo = firstSection.display_informations;
-    if (!displayInfo) return null;
-
-    if (displayInfo.physical_mode?.startsWith('RER')) {
-      return displayInfo.label;
-    }
-    else if (displayInfo.physical_mode?.startsWith('TER')) {
-      return displayInfo.commercial_mode;
-    }
-    else {
-      return displayInfo.commercial_mode || firstSection.mode || firstSection.type;
-    }
-  }
 
   // Get the destination from the last section
-  const destination = lastSection.display_informations?.direction || lastSection.to.name || lastSection.to.id;
+  let destination = lastSection.display_informations?.direction || lastSection.to.name || lastSection.to.id;
+  // Remove text within parentheses from destination
+  destination = destination?.replace(/\s*\([^)]*\)/g, '');
   const startTime = formatTime(firstSection.departure_date_time);
   const endTime = formatTime(lastSection.arrival_date_time);
-  const label = Label();
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Typography component="span" variant="body2" fontWeight="medium" sx={{ mr: 1 }}>
-        {startTime} - {endTime}
-      </Typography>
-      <Box
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: modeColor,
-          color: 'white',
-          borderRadius: '5px',
-          // width: 24,
-          height: 24,
-          fontSize: '0.75rem',
-          fontWeight: 'bold',
-          pr: 1,
-          pl: 1,
-          mr: 1,
-        }}
-      >
-        {label}
-      </Box>
-      {destination && (
-        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-          to {destination}
+    <Box sx={{ flexGrow: 1, display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' } }}>
+      {/* Times on the left, stacked on small screens */}
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        mr: 2
+      }}>
+        <Typography component="span" variant="body2" fontWeight="bold" fontSize={18}>
+          {startTime}
         </Typography>
-      )}
+        <Typography
+          component="span"
+          variant="body2"
+          fontWeight="bold"
+          fontSize={18}
+          sx={{
+            display: { xs: 'none', sm: 'inline' },
+          }}
+          ml={1}
+        >
+          -
+        </Typography>
+        <Typography
+          component="span"
+          variant="body2"
+          fontWeight="bold"
+          fontSize={18}
+          sx={{
+            ml: { xs: 0, sm: 1 }
+          }}
+        >
+          {endTime}
+        </Typography>
+      </Box>
+
+      {/* Stack destination and journey details on small screens */}
+      <Grid container spacing={2}
+        direction="row"
+        sx={{
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexGrow: 1,
+        }}>
+        <Grid size={{ sm: 12, md: 6 }}>
+          {destination && (
+            <Typography variant="body2" noWrap fontSize={16}>
+              {destination}
+            </Typography>
+          )}
+        </Grid>
+        {/* <Grid size={{ xs: 12, sm: 6 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <JourneySectionLabel section={firstSection} />
+            <JourneyTransfersInfo transfers={transfers} />
+            <DurationInfo durationInSeconds={durationInSeconds} />
+          </Box>
+        </Grid> */}
+        <Grid size={{ sm: 6, md: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <JourneySectionLabel section={firstSection} />
+          </Box>
+        </Grid>
+        <Grid size={{ sm: 6, md: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <JourneyTransfersInfo transfers={transfers} />
+            <DurationInfo durationInSeconds={durationInSeconds} />
+          </Box>
+        </Grid>
+      </Grid>
     </Box>
   );
 };
@@ -196,7 +262,7 @@ const TripSummary: React.FC<{ sections: Section[] }> = ({ sections }) => {
  */
 const DurationInfo: React.FC<{ durationInSeconds: number }> = ({ durationInSeconds }) => {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', whiteSpace: "nowrap" }}>
       <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
       <Typography variant="body2">{formatDuration(durationInSeconds)}</Typography>
     </Box>
@@ -207,16 +273,17 @@ const DurationInfo: React.FC<{ durationInSeconds: number }> = ({ durationInSecon
  * TransfersInfo Component
  * Displays information about transfers in a journey
  */
-const TransfersInfo: React.FC<{ transfers: number }> = ({ transfers }) => {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <SwapVertIcon fontSize="small" sx={{ mr: 0.5 }} />
-      <Typography variant="body2" color="text.secondary">
-        {transfers === 0 ? 'Direct' : `${transfers} ${transfers === 1 ? 'change' : 'changes'}`}
-      </Typography>
-    </Box>
-  );
-};
+const JourneyTransfersInfo: React.FC<{ transfers: number }> = ({ transfers }) => {
+  if (transfers === 0) return null;
+  if (transfers > 0) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', whiteSpace: "nowrap" }}>
+        <TransferWithinAStationIcon fontSize="small" sx={{ mr: 0.5 }} />
+        <Typography variant="body2">{transfers}</Typography>
+      </Box>
+    );
+  }
+}
 
 /**
  * Journey Section Component
@@ -225,23 +292,13 @@ const TransfersInfo: React.FC<{ transfers: number }> = ({ transfers }) => {
 const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
   const [showStops, setShowStops] = useState(true);
   const modeColor = getModeColor(section.mode, section.display_informations);
-  
+
   // More robust handling of location names with proper null checks
   const fromName = section.from?.stop_point?.name || section.from?.name || 'Unknown location';
   const toName = section.to?.stop_point?.name || section.to?.name || 'Unknown location';
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'flex-start', my: 1 }}>
-      <Box
-        sx={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          bgcolor: modeColor,
-          mr: 1,
-          mt: 1,
-        }}
-      />
       <Box sx={{ flexGrow: 1 }}>
         <Typography variant="body2" color="text.secondary">
           {formatTime(section.departure_date_time)} - {fromName}
@@ -280,42 +337,42 @@ const JourneySectionItem: React.FC<{ section: Section }> = ({ section }) => {
                 {formatDuration(section.duration || 0)}
               </Typography>
               {section.stop_date_times && section.stop_date_times.length > 0 && (
-              <>
-                <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <ExpandButton
-                    expanded={showStops}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowStops(!showStops);
-                    }}
-                  />
-                </Box>
-              </>
+                <>
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <ExpandButton
+                      expanded={showStops}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowStops(!showStops);
+                      }}
+                    />
+                  </Box>
+                </>
               )}
             </Box>
 
             {section.stop_date_times && section.stop_date_times.length > 0 && (
-                <Collapse in={showStops}>
-                  <Box sx={{ mt: 1, ml: 2 }}>
-                    {section.stop_date_times.map((stop, index: number) => (
-                      <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                        <Box
-                          sx={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: '50%',
-                            bgcolor: modeColor,
-                            opacity: 0.5,
-                            mr: 1,
-                          }}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          {formatTime(stop.departure_date_time)} - {stop.stop_point.name}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Collapse>
+              <Collapse in={showStops}>
+                <Box sx={{ mt: 1, ml: 2 }}>
+                  {section.stop_date_times.map((stop, index: number) => (
+                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          bgcolor: modeColor,
+                          opacity: 0.5,
+                          mr: 1,
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTime(stop.departure_date_time)} - {stop.stop_point.name}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Collapse>
             )}
           </Box>
         </Box>
@@ -351,6 +408,8 @@ const ExpandButton: React.FC<{
   </IconButton>
 );
 
+const SECTION_FILTERS = ['crow_fly', 'transfer', 'waiting', 'boarding'];
+
 /**
  * Journey Card Component
  * Displays a single journey option
@@ -377,40 +436,32 @@ const JourneyCard: React.FC<{ journey: Journey; isFastest?: boolean }> = ({
     >
       <CardActionArea>
         <CardContent>
-          <Grid container spacing={2}>
-            {/* Journey Header */}
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {journey.sections && journey.sections.length > 0 && (
-                    <TripSummary sections={journey.sections} />
-                )}
-                <Box
-                  sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-end' }}
-                >
-                  <TransfersInfo transfers={journey.nb_transfers} />
-                  <DurationInfo durationInSeconds={journey.duration} />
-                  <ExpandButton expanded={expanded} onClick={toggleExpanded} />
-                </Box>
-              </Box>
-            </Grid>
-
-            {/* Journey Sections - Collapsible */}
-            {expanded && (
-              <Grid item xs={12}>
-                <Divider />
-                {journey.sections
-                  .filter(section => !['crow_fly', 'transfer', 'waiting'].includes(section.type || ''))
-                  .map((section, index, filteredSections) => (
-                    <React.Fragment key={index}>
-                      <JourneySectionItem section={section} />
-                      {index < filteredSections.length - 1 && <Divider sx={{ my: 1 }} />}
-                    </React.Fragment>
-                  ))}
-                <Divider />
-                <DisplayJSON data={journey} />
-              </Grid>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {journey.sections && journey.sections.length > 0 && (
+              <JourneySectionSummary sections={journey.sections}
+                transfers={journey.nb_transfers}
+                durationInSeconds={journey.duration}
+              />
             )}
-          </Grid>
+            <ExpandButton expanded={expanded} onClick={toggleExpanded} />
+          </Box>
+
+          {/* Journey Sections - Collapsible */}
+          {expanded && (
+            <Box>
+              <Divider />
+              {journey.sections
+                .filter(section => !SECTION_FILTERS.includes(section.type || ''))
+                .map((section, index, filteredSections) => (
+                  <React.Fragment key={index}>
+                    <JourneySectionItem section={section} />
+                    {index < filteredSections.length - 1 && <Divider sx={{ my: 1 }} />}
+                  </React.Fragment>
+                ))}
+              <Divider />
+              <DisplayJSON data={journey} />
+            </Box>
+          )}
         </CardContent>
       </CardActionArea>
     </Card>
