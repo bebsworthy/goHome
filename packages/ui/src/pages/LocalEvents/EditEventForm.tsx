@@ -173,87 +173,106 @@ export function EditEventForm({
         }}
         onFinish={handleSubmit}
       >
-        <Form.Item
-          name="title"
-          label="Title"
-          rules={[{ required: true, message: 'Please enter the event title' }]}
-        >
-          <Input />
-        </Form.Item>
-        
-        <Form.Item
-          name="dates"
-          label="Dates"
-          rules={[{ required: true, message: 'Please select event dates' }]}
-        >
-          <DatePicker.RangePicker style={{ width: '100%' }} />
-        </Form.Item>
+        <div style={{ display: 'flex', gap: 24 }}>
+          {/* Left Column - Main Information */}
+          <div style={{ flex: 1 }}>
+            <Typography.Title level={5}>Main Information</Typography.Title>
+            
+            <Form.Item
+              name="title"
+              label="Title"
+              rules={[{ required: true, message: 'Please enter the event title' }]}
+            >
+              <Input />
+            </Form.Item>
+            
+            <Form.Item name="description" label="Description">
+              <Input.TextArea rows={4} />
+            </Form.Item>
 
-        <Form.Item
-          name="location"
-          label="Location"
-          rules={[{ required: true, message: 'Please enter the event location' }]}
-        >
-          <Input />
-        </Form.Item>
+            <div style={{ display: 'flex', gap: 16 }}>
+              <Form.Item
+                name="dates"
+                label="Dates"
+                style={{ flex: 1 }}
+                rules={[{ required: true, message: 'Please select event dates' }]}
+              >
+                <DatePicker.RangePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </div>
 
-        <Form.Item name="city" label="City">
-          <Input />
-        </Form.Item>
+            <div style={{ display: 'flex', gap: 16 }}>
+              <Form.Item
+                name="startTime"
+                label="Start Time"
+                style={{ flex: 1 }}
+              >
+                <TimePicker format="HH:mm" style={{ width: '100%' }} />
+              </Form.Item>
 
-        <Form.Item name="description" label="Description">
-          <Input.TextArea rows={4} />
-        </Form.Item>
+              <Form.Item
+                name="endTime"
+                label="End Time"
+                style={{ flex: 1 }}
+              >
+                <TimePicker format="HH:mm" style={{ width: '100%' }} />
+              </Form.Item>
+            </div>
 
-        <Form.Item name="price" label="Price">
-          <Input />
-        </Form.Item>
-
-        <Form.Item name="category" label="Category">
-          <Input />
-        </Form.Item>
-
-        <Form.Item
-          name="startTime"
-          label="Start Time"
-        >
-          <TimePicker format="HH:mm" />
-        </Form.Item>
-
-        <Form.Item
-          name="endTime"
-          label="End Time"
-        >
-          <TimePicker format="HH:mm" />
-        </Form.Item>
-
-        {mode === 'edit' && event?.id && (
-          <Form.Item label="Images">
-            {event.images && event.images.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                {event.images.map((image, index) => (
-                  <img
-                    key={index}
-                    src={`/api/local/events/${event.id}/images/${image}`}
-                    alt={`Event image ${index + 1}`}
-                    style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }}
-                  />
-                ))}
-              </div>
+            {mode === 'edit' && event?.id && (
+              <Form.Item label="Images">
+                {event.images && event.images.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {event.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={`/api/local/events/${event.id}/images/${image}`}
+                        alt={`Event image ${index + 1}`}
+                        style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }}
+                      />
+                    ))}
+                  </div>
+                )}
+                <Upload {...uploadProps}>
+                  <Button icon={<UploadOutlined />} loading={uploading}>
+                    {uploading ? 'Uploading...' : 'Upload Images'}
+                  </Button>
+                </Upload>
+                <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                  Supported formats: JPG, PNG, WebP
+                </Text>
+              </Form.Item>
             )}
-            <Upload {...uploadProps}>
-              <Button icon={<UploadOutlined />} loading={uploading}>
-                {uploading ? 'Uploading...' : 'Upload Images'}
-              </Button>
-            </Upload>
-            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-              Supported formats: JPG, PNG, WebP
-            </Text>
-          </Form.Item>
-        )}
+          </div>
+
+          {/* Right Column - Additional Information */}
+          <div style={{ flex: 1 }}>
+            <Typography.Title level={5}>Location & Classification</Typography.Title>
+            
+            <Form.Item
+              name="location"
+              label="Location"
+              rules={[{ required: true, message: 'Please enter the event location' }]}
+            >
+              <Input />
+            </Form.Item>
+
+            <Form.Item name="city" label="City">
+              <Input />
+            </Form.Item>
+
+            <Form.Item name="category" label="Category">
+              <Input />
+            </Form.Item>
+
+            <Form.Item name="price" label="Price">
+              <Input />
+            </Form.Item>
+          </div>
+        </div>
 
         <Form.Item>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
             <Button onClick={handleCancel}>Cancel</Button>
             <Button type="primary" htmlType="submit" loading={uploading}>
               {mode === 'create' ? 'Create' : 'Save'}
