@@ -1,4 +1,4 @@
-import { Modal, Form, Input, TimePicker, Button, Space, Card, Typography, DatePicker, Upload, message } from 'antd';
+import { Modal, Form, Input, TimePicker, Button, Space, Card, Typography, DatePicker, Upload, message, Tag } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import type { Event } from '@/utils/localeventApi';
 import type { UploadFile, UploadProps } from 'antd';
@@ -26,18 +26,35 @@ export function EditEventForm({
   duplicates = []
 }: EditEventFormProps) {
   const [form] = useForm();
+  const [selectedDates, setSelectedDates] = useState<dayjs.Dayjs[]>(
+    event?.dates ? event.dates.map(date => dayjs(date)) : []
+  );
   const [showDuplicates, setShowDuplicates] = useState(duplicates.length > 0);
   const [uploading, setUploading] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+
+  const handleDateSelect = (date: dayjs.Dayjs | null) => {
+    if (date) {
+      const newDate = date.startOf('day');
+      if (!selectedDates.some(d => d.isSame(newDate, 'day'))) {
+        const newDates = [...selectedDates, newDate].sort((a, b) => a.valueOf() - b.valueOf());
+        setSelectedDates(newDates);
+        form.setFieldValue('dates', newDates);
+      }
+    }
+  };
+
+  const handleDateRemove = (dateToRemove: dayjs.Dayjs) => {
+    const newDates = selectedDates.filter(date => !date.isSame(dateToRemove, 'day'));
+    setSelectedDates(newDates);
+    form.setFieldValue('dates', newDates);
+  };
 
   const handleSubmit = async (values: any) => {
     const eventData = {
       ...(event || {}),
       ...values,
-      dates: values.dates ? [
-        values.dates[0].format('YYYY-MM-DD'),
-        values.dates[1].format('YYYY-MM-DD')
-      ] : [],
+      dates: values.dates.map((date: dayjs.Dayjs) => date.format('YYYY-MM-DD')),
       startTime: values.startTime?.format('HH:mm'),
       endTime: values.endTime?.format('HH:mm'),
     };
@@ -164,10 +181,7 @@ export function EditEventForm({
         layout="vertical"
         initialValues={{
           ...event,
-          dates: event?.dates ? [
-            dayjs(event.dates[0]), 
-            dayjs(event.dates[event.dates.length - 1])
-          ] : undefined,
+          dates: event?.dates ? event.dates.map(date => dayjs(date)) : [],
           startTime: event?.startTime ? dayjs(event.startTime, 'HH:mm') : undefined,
           endTime: event?.endTime ? dayjs(event.endTime, 'HH:mm') : undefined,
         }}
@@ -190,16 +204,33 @@ export function EditEventForm({
               <Input.TextArea rows={4} />
             </Form.Item>
 
-            <div style={{ display: 'flex', gap: 16 }}>
-              <Form.Item
-                name="dates"
-                label="Dates"
-                style={{ flex: 1 }}
-                rules={[{ required: true, message: 'Please select event dates' }]}
-              >
-                <DatePicker.RangePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </div>
+            <Form.Item
+              name="dates"
+              label="Event Dates"
+              rules={[{ required: true, message: 'Please select at least one event date' }]}
+            >
+              <div>
+                <DatePicker 
+                  style={{ width: '100%', marginBottom: 8 }} 
+                  onChange={handleDateSelect}
+                  disabledDate={current => 
+                    selectedDates.some(date => date.isSame(current, 'day'))
+                  }
+                />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {selectedDates.map((date) => (
+                    <Tag
+                      key={date.valueOf()}
+                      closable
+                      onClose={() => handleDateRemove(date)}
+                      style={{ margin: '4px 0' }}
+                    >
+                      {date.format('DD MMM YYYY')}
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+            </Form.Item>
 
             <div style={{ display: 'flex', gap: 16 }}>
               <Form.Item
