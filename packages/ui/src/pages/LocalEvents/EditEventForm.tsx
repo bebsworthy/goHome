@@ -3,7 +3,6 @@ import type { Event } from '@/utils/localeventApi';
 import { useForm } from 'antd/es/form/Form';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import type { RangePickerProps } from 'antd/es/date-picker';
 
 const { Text } = Typography;
 

@@ -2,6 +2,9 @@
 import dotenv from 'dotenv';
 import path, { join } from 'path';
 dotenv.config();
+const DONE = 'DONE';
+const FAILED = 'FAILED';
+const INPUT = 'INPUT';
 // Load configuration from environment variables
 const config = {
     openAI: {
@@ -9,19 +12,20 @@ const config = {
         apiKey: process.env.OPENAI_API_KEY,
     },
     // Image processing configuration
-    imageFolder: process.env.EVENT_IMAGE_FOLDER || 'INPUT',
-    imagePath: (filename) => {
-        const basePath = path.isAbsolute(config.imageFolder)
+    imageFolder: process.env.EVENT_IMAGE_FOLDER || 'IMAGES',
+    imageFolderPath: () => {
+        return path.isAbsolute(config.imageFolder)
             ? config.imageFolder
             : join(process.cwd(), config.imageFolder);
-        return filename ? join(basePath, filename) : basePath;
     },
-    donePath: (filename) => {
-        const basePath = path.isAbsolute(config.imageFolder)
-            ? config.imageFolder
-            : join(process.cwd(), config.imageFolder);
-        const donePath = join(basePath, 'DONE');
-        return filename ? join(donePath, filename) : donePath;
+    imageInputPath: (filename) => {
+        return join(config.imageFolderPath(), INPUT, filename);
+    },
+    imageDonePath: (filename) => {
+        return join(config.imageFolderPath(), DONE, filename);
+    },
+    imageFailedPath: (filename) => {
+        return join(config.imageFolderPath(), FAILED, filename);
     }
 };
 // Validate required configuration

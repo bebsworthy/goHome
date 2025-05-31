@@ -1,6 +1,5 @@
 import { Card, Typography, Space, Button } from 'antd';
 import type { DuplicateInfo } from '@/utils/localeventApi';
-import dayjs from 'dayjs';
 
 const { Text } = Typography;
 

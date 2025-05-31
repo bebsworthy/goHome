@@ -20,7 +20,7 @@ interface ListImagesResponse {
   pageSize: number;
 }
 
-async function getImagesFromDirectory(status: ImageStatus, page: number, pageSize: number): Promise<ListImagesResponse> {
+export async function getImagesFromDirectory(status: ImageStatus, page: number, pageSize: number): Promise<ListImagesResponse> {
   const dir = getDirectoryByStatus(status);
   const files = await readdir(dir);
   const imageFiles = files.filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file));
@@ -56,7 +56,7 @@ async function getImagesFromDirectory(status: ImageStatus, page: number, pageSiz
   };
 }
 
-function getDirectoryByStatus(status: ImageStatus): string {
+export function getDirectoryByStatus(status: ImageStatus): string {
   switch (status) {
     case ImageStatus.DONE:
       return config.imageDonePath("");

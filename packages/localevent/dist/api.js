@@ -5,19 +5,75 @@ import { dateRangeSchema, eventSchema } from './validator.js';
 import { writeFile, mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import config from './config.js';
+import { imageApi } from './image-api.js';
+import stringSimilarity from 'string-similarity';
 const app = new Hono();
 const prisma = new PrismaClient();
+const SIMILARITY_THRESHOLD = 0.8; // Jaro-Winkler similarity threshold
+// Helper function to normalize text for comparison
+function normalizeText(text) {
+    return text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+// Check if date arrays overlap
+function datesOverlap(dates1, dates2) {
+    const start1 = Math.min(...dates1.map(d => d.getTime()));
+    const end1 = Math.max(...dates1.map(d => d.getTime()));
+    const start2 = Math.min(...dates2.map(d => d.getTime()));
+    const end2 = Math.max(...dates2.map(d => d.getTime()));
+    return start1 <= end2 && end1 >= start2;
+}
+// Find potential duplicates for an event
+async function findPotentialDuplicates(event) {
+    // Find events in the same city with overlapping dates
+    const candidateEvents = await prisma.event.findMany({
+        where: {
+            city: event.city,
+            dates: {
+                hasSome: event.dates
+            }
+        }
+    });
+    const potentialDuplicates = [];
+    for (const candidate of candidateEvents) {
+        // Skip if it's the same event
+        if (candidate.id === event.id)
+            continue;
+        // Check if dates overlap
+        if (!datesOverlap(candidate.dates, event.dates))
+            continue;
+        // Calculate title similarity
+        const similarity = stringSimilarity.compareTwoStrings(normalizeText(event.title), normalizeText(candidate.title));
+        if (similarity >= SIMILARITY_THRESHOLD) {
+            potentialDuplicates.push({
+                id: candidate.id,
+                similarityScore: similarity
+            });
+        }
+    }
+    return potentialDuplicates.sort((a, b) => b.similarityScore - a.similarityScore);
+}
+// Mount the image API routes
+app.route('/', imageApi);
 // Format date as YYYY-MM-DD
 function formatDate(date) {
     return date.toISOString().split('T')[0];
 }
 // Format event response by converting dates to YYYY-MM-DD format
-function formatEventResponse(event) {
+const formatEventResponse = (event) => {
     return {
         ...event,
         dates: event.dates.map((d) => formatDate(d)),
+        startTime: event.startTime || undefined,
+        endTime: event.endTime || undefined,
+        city: event.city || undefined,
+        description: event.description || undefined,
+        duplicateOfId: event.duplicateOfId || null
     };
-}
+};
 // Get events within a date range
 app.get('/events', async (c) => {
     try {
@@ -27,6 +83,10 @@ app.get('/events', async (c) => {
         });
         const startDate = new Date(start);
         const endDate = new Date(end);
+        // Validate dates
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return c.json({ error: 'Invalid date format' }, 400);
+        }
         // Validate that end date is after start date
         if (endDate < startDate) {
             return c.json({ error: 'End date must be after start date' }, 400);
@@ -80,13 +140,42 @@ app.post('/events', async (c) => {
     try {
         const body = await c.req.json();
         const validatedData = eventSchema.parse(body);
+        // Convert string dates to Date objects and ensure they are valid
+        const eventDates = validatedData.dates.map(date => {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) {
+                throw new Error(`Invalid date: ${date}`);
+            }
+            return d;
+        });
+        // Check for potential duplicates before creating
+        const potentialDuplicates = await findPotentialDuplicates({
+            ...validatedData,
+            dates: eventDates
+        });
+        // Create the event with duplicate information if found
         const event = await prisma.event.create({
             data: {
                 ...validatedData,
-                dates: validatedData.dates.map(date => new Date(date)),
+                dates: eventDates,
+                ...(potentialDuplicates.length > 0 && {
+                    duplicateOfId: potentialDuplicates[0].id,
+                    similarityScore: potentialDuplicates[0].similarityScore
+                })
             }
         });
-        return c.json(formatEventResponse(event), 201);
+        // If there are potential duplicates, include them in the response
+        // @TODO: This code is a mess
+        const response = {
+            event: formatEventResponse(event),
+            ...(potentialDuplicates.length > 0 && {
+                potentialDuplicates: await Promise.all(potentialDuplicates.map(async (dup) => ({
+                    event: formatEventResponse((await prisma.event.findUnique({ where: { id: dup.id } }))),
+                    similarityScore: dup.similarityScore
+                })))
+            })
+        };
+        return c.json(response, 201);
     }
     catch (error) {
         if (error instanceof z.ZodError) {
@@ -110,11 +199,19 @@ app.put('/events/:id', async (c) => {
         }
         const body = await c.req.json();
         const validatedData = eventSchema.parse(body);
+        // Convert and validate dates
+        const eventDates = validatedData.dates.map(date => {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) {
+                throw new Error(`Invalid date: ${date}`);
+            }
+            return d;
+        });
         const updatedEvent = await prisma.event.update({
             where: { id },
             data: {
                 ...validatedData,
-                dates: validatedData.dates.map(date => new Date(date)),
+                dates: eventDates,
             }
         });
         return c.json(formatEventResponse(updatedEvent));
@@ -162,7 +259,7 @@ app.post('/events/upload', async (c) => {
         // Create unique filename using timestamp
         const timestamp = Date.now();
         const filename = `${timestamp}_${file.name}`;
-        const inputPath = config.imagePath(filename);
+        const inputPath = config.imageInputPath(filename);
         // Ensure directory exists
         await mkdir(dirname(inputPath), { recursive: true });
         // Convert File to Buffer and save it

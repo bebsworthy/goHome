@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { PrismaClient } from './generated/prisma/client.js';
+import { Prisma, PrismaClient, type Event as DbEvent } from './generated/prisma/client.js';
 import { dateRangeSchema, eventSchema } from './validator.js';
 import { writeFile, mkdir } from 'fs/promises';
 import { dirname } from 'path';
@@ -72,7 +72,7 @@ async function findPotentialDuplicates(event: any): Promise<PotentialDuplicate[]
     }
   }
 
-  return potentialDuplicates;
+  return potentialDuplicates.sort((a, b) => b.similarityScore - a.similarityScore);
 }
 
 // Mount the image API routes
@@ -84,9 +84,8 @@ function formatDate(date: Date): string {
 }
 
 // Format event response by converting dates to YYYY-MM-DD format
-function formatEventResponse(event: any) {
+const formatEventResponse = (event: DbEvent) => {
   return {
-    id: event.id,
     ...event,
     dates: event.dates.map((d: Date) => formatDate(d)),
     startTime: event.startTime || undefined,
@@ -154,7 +153,7 @@ app.get('/events/:id', async (c) => {
       return c.json({ error: 'Invalid event ID' }, 400);
     }
 
-    const event = await prisma.event.findUnique({
+    const event: DbEvent | null = await prisma.event.findUnique({
       where: { id }
     });
 
@@ -203,12 +202,13 @@ app.post('/events', async (c) => {
     });
     
     // If there are potential duplicates, include them in the response
+    // @TODO: This code is a mess
     const response = {
       event: formatEventResponse(event),
       ...(potentialDuplicates.length > 0 && {
         potentialDuplicates: await Promise.all(
           potentialDuplicates.map(async (dup) => ({
-            event: formatEventResponse(await prisma.event.findUnique({ where: { id: dup.id } })),
+            event: formatEventResponse((await prisma.event.findUnique({ where: { id: dup.id } }))!),
             similarityScore: dup.similarityScore
           }))
         )

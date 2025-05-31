@@ -3,7 +3,6 @@ import { Upload, Typography, App } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import type { RcFile } from 'antd/es/upload/interface';
-import type { DuplicateInfo } from '@/utils/localeventApi';
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;

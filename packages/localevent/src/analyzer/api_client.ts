@@ -2,8 +2,16 @@ import { EventInformation } from "./types.js";
 
 const API_URL = `http://localhost:${process.env.API_PORT || 3000}`;
 
-export async function saveEvent(eventInfo: EventInformation): Promise<void> {
+export async function saveEvent(eventInfo: EventInformation): Promise<{event:{id: any}}> {
   try {
+
+    if (!eventInfo.title) {
+      throw new Error('Event title is required');
+    }
+    if (!eventInfo.dates || eventInfo.dates.length === 0) {
+      throw new Error('At least one event date is required');
+    }
+    
     const response = await fetch(`${API_URL}/events`, {
       method: 'POST',
       headers: {
@@ -26,13 +34,18 @@ export async function saveEvent(eventInfo: EventInformation): Promise<void> {
       })
     });
 
-    if (!response.ok) {
+    if (response.status !== 200) {
       const error = await response.json();
-      throw new Error(`Failed to save event: ${JSON.stringify(error)}`);
+      throw new Error(`Failed to save event: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`);
     }
 
     const savedEvent = await response.json() as any;
-    console.log(`Event "${eventInfo.title}" saved with ID ${savedEvent.id}`);
+    console.log(`Event "${eventInfo.title}" saved with ID ${savedEvent.event.id}`);
+    if (savedEvent.duplicateOfId) {
+      console.log(`This event is a duplicate of event ID ${savedEvent.duplicateOfId}`);
+    }
+
+    return savedEvent
   } catch (error) {
     console.error('Error saving event to database:', error);
     throw error;

@@ -1,0 +1,27 @@
+{
+  "date": "2025-05-31T18:10:45.896Z",
+  "source": "image_converter",
+  "model": "gemma3",
+  "prompt": "Please analyze this image and extract the following event information:\n  - title the title of the event as written in the image\n  - dates converted to YYYY-MM-DD format, an event is over multiple days this should be an array\n  - time (if available, as written in the image)\n  - startTime (if available, in HH:MM format)\n  - endTime (if available, in HH:MM format)\n  - location (if available, as written in the image)\n  - city (if available)\n  - description\n  - organizer (if available)\n  - price (if available)\n  - category (if you can determine it)\n  - email (if available)\n  - phone (if available)\n  - rawText (all the text that can be extracted from the image a concatenation of all text in the image)\n  \n  If any of these fields are not available leave them out of the response.\n  The image most likely contains a flyer or poster for an event, so please focus on extracting the relevant information.\n  The text of the flying is most likely in French, do not translate it.\n\n  Please format the response as a JSON object with these fields.",
+  "dbId": "",
+  "data": {
+    "title": "LES APÉROS DE LA FOLIE BERVILLOISE",
+    "dates": [],
+    "time": "18h30",
+    "startTime": "18h30",
+    "endTime": null,
+    "location": "SUR LA PLACE",
+    "city": null,
+    "description": "LE BAR EST OUVERT TOUS LES VENDREDIS sous condition d’une météo favorable. N’OUBLIEZ PAS VOUS BOULES DE PÉTanque! RETROUVEZ-NOUS SUR FACEBOOK «LA FOLIE BERVILLOISE»",
+    "organizer": "LA FOLIE BERVILLOISE",
+    "price": null,
+    "category": "Event/Entertainment",
+    "email": null,
+    "phone": null,
+    "rawText": "LES APÉROS DE LA FOLIE BERVILLOISE\nLE BAR EST OUVERT TOUS LES VENDREDIS sous condition d’une météo favorable. N’OUBLIEZ PAS VOUS BOULES DE PÉTanque! RETROUVEZ-NOUS SUR FACEBOOK «LA FOLIE BERVILLOISE»\nLA FOLIE BERVILLOISE\nASSOCIATION D'ANIMATION DE BERVILLLE"
+  },
+  "error": {
+    "stack": "Error: At least one event date is required\n    at saveEvent (/Users/boyd/wip/goHome/packages/localevent/src/analyzer/api_client.ts:12:13)\n    at processImagesDirectory (/Users/boyd/wip/goHome/packages/localevent/src/analyzer/image_converter.ts:219:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+    "message": "At least one event date is required"
+  }
+}

@@ -25,6 +25,7 @@ model Event {
   status      EventStatus @default(NEW)
   title       String
   dates       DateTime[]
+  time        String?
   startTime   String?
   endTime     String?
   location    String?
