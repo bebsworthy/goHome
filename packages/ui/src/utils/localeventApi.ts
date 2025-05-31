@@ -16,6 +16,7 @@ export interface Event {
   phone?: string;
   duplicateOfId?: number;
   similarityScore?: number;
+  images?: string[];
 }
 
 export interface DuplicateInfo {

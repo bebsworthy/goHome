@@ -5,9 +5,17 @@ dotenv.config();
 
 // Configuration interface
 export interface Config {
-  openApiUrl: string;
+  openAI: {
+    apiUrl: string;
+    apiKey: string | undefined;
+  };
   imageFolder: string;
-  apiKey?: string;
+  dataPath: string;
+  imageFolderPath: () => string;
+  imageInputPath: (filename: string) => string;
+  imageDonePath: (filename: string) => string;
+  imageFailedPath: (filename: string) => string;
+  eventImagePath: (eventId: number, filename: string) => string;
 }
 
 const DONE = 'DONE';
@@ -20,6 +28,8 @@ const config = {
     apiUrl: process.env.OPENAI_API_ENDPOINT || '',
     apiKey: process.env.OPENAI_API_KEY,
   },
+  // Data path configuration
+  dataPath: process.env.DATA || (process.env.NODE_ENV === 'test' ? 'test_data' : 'data'),
   // Image processing configuration
   imageFolder: process.env.EVENT_IMAGE_FOLDER || 'IMAGES',
   imageFolderPath: () => {
@@ -35,6 +45,9 @@ const config = {
   },
   imageFailedPath: (filename: string) => {
     return join(config.imageFolderPath(), FAILED, filename);
+  },
+  eventImagePath: (eventId: number, filename: string) => {
+    return join(process.env.DATA || 'data', 'images', eventId.toString(), filename);
   }
 };
 

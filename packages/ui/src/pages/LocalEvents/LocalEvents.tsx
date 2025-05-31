@@ -254,6 +254,18 @@ function LocalEventPage() {
                     {event.description && (
                       <Text type="secondary">{event.description}</Text>
                     )}
+                    {event.images && event.images.length > 0 && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        {event.images.map((image, index) => (
+                          <img
+                            key={index}
+                            src={`/api/local/events/${event.id}/images/${image}`}
+                            alt={`Event ${event.title} image ${index + 1}`}
+                            style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }}
+                          />
+                        ))}
+                      </div>
+                    )}
                     <Space size={[0, 8]} wrap>
                       {event.price && (
                         <Tag color="blue">{event.price}</Tag>

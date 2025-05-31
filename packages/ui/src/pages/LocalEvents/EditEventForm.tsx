@@ -1,5 +1,7 @@
-import { Modal, Form, Input, TimePicker, Button, Space, Card, Typography, DatePicker } from 'antd';
+import { Modal, Form, Input, TimePicker, Button, Space, Card, Typography, DatePicker, Upload, message } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import type { Event } from '@/utils/localeventApi';
+import type { UploadFile, UploadProps } from 'antd';
 import { useForm } from 'antd/es/form/Form';
 import dayjs from 'dayjs';
 import { useState } from 'react';
@@ -25,8 +27,10 @@ export function EditEventForm({
 }: EditEventFormProps) {
   const [form] = useForm();
   const [showDuplicates, setShowDuplicates] = useState(duplicates.length > 0);
+  const [uploading, setUploading] = useState(false);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
 
-  const handleSubmit = (values: any) => {
+  const handleSubmit = async (values: any) => {
     const eventData = {
       ...(event || {}),
       ...values,
@@ -37,16 +41,75 @@ export function EditEventForm({
       startTime: values.startTime?.format('HH:mm'),
       endTime: values.endTime?.format('HH:mm'),
     };
-    onSave(eventData);
+
+    // Save the event first to get its ID
+    await onSave(eventData);
+
+    // If we have any files and this is an edit (we have an event ID), upload them
+    if (fileList.length > 0 && event?.id) {
+      setUploading(true);
+      const uploadPromises = fileList.map(async (file) => {
+        if (file.originFileObj) {
+          const formData = new FormData();
+          formData.append('file', file.originFileObj);
+          
+          try {
+            const response = await fetch(`/api/local/events/${event.id}/image`, {
+              method: 'POST',
+              body: formData,
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to upload image');
+            }
+            
+            return response.json();
+          } catch (error) {
+            console.error('Error uploading file:', error);
+            message.error(`Failed to upload ${file.name}`);
+            return null;
+          }
+        }
+      });
+
+      try {
+        await Promise.all(uploadPromises);
+        message.success('Images uploaded successfully');
+      } catch (error) {
+        console.error('Error uploading images:', error);
+        message.error('Some images failed to upload');
+      } finally {
+        setUploading(false);
+      }
+    }
   };
 
   const handleCancel = () => {
     form.resetFields();
+    setFileList([]);
     onCancel();
   };
 
   const handleCreateAnyway = () => {
     setShowDuplicates(false);
+  };
+
+  const uploadProps: UploadProps = {
+    listType: 'picture',
+    accept: 'image/jpeg,image/png,image/webp',
+    multiple: true,
+    fileList,
+    beforeUpload: (file) => {
+      const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+      if (!isValidType) {
+        message.error('You can only upload JPG/PNG/WebP files!');
+        return false;
+      }
+      return false; // Prevent automatic upload
+    },
+    onChange: ({ fileList: newFileList }) => {
+      setFileList(newFileList);
+    },
   };
 
   if (showDuplicates) {
@@ -94,6 +157,7 @@ export function EditEventForm({
       open={open}
       onCancel={handleCancel}
       footer={null}
+      width={600}
     >
       <Form
         form={form}
@@ -163,10 +227,35 @@ export function EditEventForm({
           <TimePicker format="HH:mm" />
         </Form.Item>
 
+        {mode === 'edit' && event?.id && (
+          <Form.Item label="Images">
+            {event.images && event.images.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                {event.images.map((image, index) => (
+                  <img
+                    key={index}
+                    src={`/api/local/events/${event.id}/images/${image}`}
+                    alt={`Event image ${index + 1}`}
+                    style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }}
+                  />
+                ))}
+              </div>
+            )}
+            <Upload {...uploadProps}>
+              <Button icon={<UploadOutlined />} loading={uploading}>
+                {uploading ? 'Uploading...' : 'Upload Images'}
+              </Button>
+            </Upload>
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              Supported formats: JPG, PNG, WebP
+            </Text>
+          </Form.Item>
+        )}
+
         <Form.Item>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={handleCancel}>Cancel</Button>
-            <Button type="primary" htmlType="submit">
+            <Button type="primary" htmlType="submit" loading={uploading}>
               {mode === 'create' ? 'Create' : 'Save'}
             </Button>
           </div>

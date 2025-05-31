@@ -2,11 +2,12 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { Prisma, PrismaClient, type Event as DbEvent } from './generated/prisma/client.js';
 import { dateRangeSchema, CreateEventInputSchema } from './validator.js';
-import { writeFile, mkdir } from 'fs/promises';
-import { dirname } from 'path';
+import { writeFile, mkdir, readFile } from 'fs/promises';
+import { dirname, join } from 'path';
 import config from './config.js';
 import { imageApi } from './image-api.js';
 import stringSimilarity from 'string-similarity';
+import { v4 as uuidv4 } from 'uuid';
 
 const app = new Hono();
 const prisma = new PrismaClient();
@@ -333,6 +334,126 @@ app.post('/events/upload', async (c) => {
     }, 202);
   } catch (error) {
     console.error('Error handling image upload:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Validate image mime type
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Add image to event endpoint
+app.post('/events/:id/image', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    if (isNaN(id)) {
+      return c.json({ error: 'Invalid event ID' }, 400);
+    }
+
+    // Check if event exists
+    const event = await prisma.event.findUnique({ where: { id } });
+    if (!event) {
+      return c.json({ error: 'Event not found' }, 404);
+    }
+
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return c.json({ error: 'No file provided' }, 400);
+    }
+
+    // Validate file type
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return c.json({ 
+        error: 'Invalid file type. Only JPEG, PNG and WebP images are allowed.' 
+      }, 400);
+    }
+
+    // Create a unique filename with UUID while preserving the extension
+    const ext = file.name.substring(file.name.lastIndexOf('.'));
+    const filename = `${uuidv4()}${ext}`;
+    
+    // Create the event's image directory if it doesn't exist
+    const eventImageDir = join(config.dataPath, 'images', id.toString());
+    await mkdir(eventImageDir, { recursive: true });
+    
+    // Save the file
+    const imagePath = join(eventImageDir, filename);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    await writeFile(imagePath, buffer);
+
+    // Update the event's images array
+    const updatedEvent = await prisma.event.update({
+      where: { id },
+      data: {
+        images: {
+          push: filename
+        }
+      },
+      include: EventIncludeDuplicates
+    });
+
+    return c.json({ 
+      message: 'Image uploaded successfully',
+      event: formatEventResponse(updatedEvent)
+    }, 200);
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Serve event images
+app.get('/events/:id/images/:filename', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const filename = c.req.param('filename');
+
+    if (isNaN(id)) {
+      return c.json({ error: 'Invalid event ID' }, 400);
+    }
+
+    // Check if event exists and is the owner of the image
+    const event = await prisma.event.findUnique({ where: { id } });
+    if (!event) {
+      return c.json({ error: 'Event not found' }, 404);
+    }
+
+    if (!event.images?.includes(filename)) {
+      return c.json({ error: 'Image not found' }, 404);
+    }
+
+    // Construct the image path
+    const imagePath = join(config.dataPath, 'images', id.toString(), filename);
+
+    // Set content type based on file extension
+    const ext = filename.toLowerCase().split('.').pop() || '';
+    const contentType = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'webp': 'image/webp'
+    }[ext];
+
+    if (!contentType) {
+      return c.json({ error: 'Invalid image format' }, 400);
+    }
+
+    try {
+      const buffer = await readFile(imagePath);
+      return new Response(buffer, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000',
+        },
+      });
+    } catch (error) {
+      console.error('Error reading image file:', error);
+      return c.json({ error: 'Image file not found' }, 404);
+    }
+  } catch (error) {
+    console.error('Error serving image:', error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
