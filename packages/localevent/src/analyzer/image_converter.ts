@@ -95,9 +95,9 @@ export async function processImage(imagePath: string): Promise<EventInformation 
 // Main function to process all images in the directory
 export async function processImagesDirectory() {
   console.log('Starting image processing...');
-  console.log(`Looking for images in: ${config.imagePath()}`);
+  console.log(`Looking for images in: ${config.imageInputPath()}`);
 
-  const imageFiles = getImageFiles(config.imagePath());
+  const imageFiles = getImageFiles(config.imageInputPath());
 
   if (imageFiles.length === 0) {
     console.log('No image files found in the specified directory.');
@@ -107,7 +107,7 @@ export async function processImagesDirectory() {
   console.log(`Found ${imageFiles.length} image(s) to process.`);
 
   for (const imageFile of imageFiles) {
-    const imagePath = config.imagePath(imageFile);
+    const imagePath = config.imageInputPath(imageFile);
     console.log(`\nProcessing: ${imageFile}`);
 
     const eventInfo = await processImage(imagePath);
@@ -120,12 +120,12 @@ export async function processImagesDirectory() {
         await saveEvent(eventInfo);
         
         // Move processed image to DONE folder
-        const doneFolder = config.donePath();
+        const doneFolder = config.imageDonePath();
         if (!fs.existsSync(doneFolder)) {
           fs.mkdirSync(doneFolder);
         }
         
-        const newPath = config.donePath(imageFile);
+        const newPath = config.imageDonePath(imageFile);
         fs.renameSync(imagePath, newPath);
         console.log(`Moved processed image to ${newPath}`);
       } catch (error) {

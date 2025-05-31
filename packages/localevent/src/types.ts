@@ -34,3 +34,9 @@ export interface ErrorResponse {
 export interface DeleteResponse {
   message: string;
 }
+
+export enum ImageStatus {
+  PENDING = 'pending',
+  DONE = 'done',
+  FAILED = 'failed'
+}

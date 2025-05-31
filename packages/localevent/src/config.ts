@@ -10,6 +10,10 @@ export interface Config {
   apiKey?: string;
 }
 
+const DONE = 'DONE';
+const FAILED = 'FAILED';
+const INPUT = 'INPUT';
+
 // Load configuration from environment variables
 const config = {
   openAI: {
@@ -17,19 +21,20 @@ const config = {
     apiKey: process.env.OPENAI_API_KEY,
   },
   // Image processing configuration
-  imageFolder: process.env.EVENT_IMAGE_FOLDER || 'INPUT',
-  imagePath: (filename?: string) => {
-    const basePath = path.isAbsolute(config.imageFolder) 
+  imageFolder: process.env.EVENT_IMAGE_FOLDER || 'IMAGES',
+  imageFolderPath: () => {
+    return path.isAbsolute(config.imageFolder) 
       ? config.imageFolder 
       : join(process.cwd(), config.imageFolder);
-    return filename ? join(basePath, filename) : basePath;
   },
-  donePath: (filename?: string) => {
-    const basePath = path.isAbsolute(config.imageFolder) 
-      ? config.imageFolder 
-      : join(process.cwd(), config.imageFolder);
-    const donePath = join(basePath, 'DONE');
-    return filename ? join(donePath, filename) : donePath;
+  imageInputPath: (filename: string) => {
+    return join(config.imageFolderPath(), INPUT, filename);
+  },
+  imageDonePath: (filename: string) => {
+    return join(config.imageFolderPath(), DONE, filename);
+  },
+  imageFailedPath: (filename: string) => {
+    return join(config.imageFolderPath(), FAILED, filename);
   }
 };
 

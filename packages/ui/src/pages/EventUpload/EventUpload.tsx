@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Typography, message } from 'antd';
+import { Upload, Typography, App } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import type { RcFile } from 'antd/es/upload/interface';
@@ -8,6 +8,7 @@ const { Dragger } = Upload;
 const { Title, Text } = Typography;
 
 function EventUpload() {
+  const { message } = App.useApp();
   const [uploading, setUploading] = useState(false);
 
   const uploadProps: UploadProps = {
@@ -15,7 +16,7 @@ function EventUpload() {
     multiple: false,
     action: '/api/local/events/upload',
     accept: 'image/*',
-    showUploadList: true,
+    showUploadList: false,
     beforeUpload: (file: RcFile) => {
       const isImage = file.type.startsWith('image/');
       if (!isImage) {
@@ -25,17 +26,20 @@ function EventUpload() {
       return true;
     },
     onChange: (info) => {
-      if (info.file.status === 'uploading') {
+      const { status, response } = info.file;
+      
+      if (status === 'uploading') {
         setUploading(true);
         return;
       }
       
-      if (info.file.status === 'done') {
-        setUploading(false);
-        message.success('Image uploaded successfully! We will process your event shortly.');
-      } else if (info.file.status === 'error') {
-        setUploading(false);
-        message.error('Failed to upload image.');
+      setUploading(false);
+      
+      if (status === 'done' && response) {
+        message.success(response.message || 'Image uploaded successfully! We will process your event shortly.');
+      } else if (status === 'error') {
+        const errorMsg = response?.error || 'Failed to upload image.';
+        message.error(errorMsg);
       }
     },
   };
@@ -51,7 +55,9 @@ function EventUpload() {
         <p className="ant-upload-drag-icon">
           <InboxOutlined />
         </p>
-        <p className="ant-upload-text">Click or drag an image to this area to upload</p>
+        <p className="ant-upload-text">
+          {uploading ? 'Uploading...' : 'Click or drag an image to this area to upload'}
+        </p>
         <p className="ant-upload-hint">
           Supported formats: JPG, PNG, GIF
         </p>

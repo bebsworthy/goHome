@@ -5,9 +5,13 @@ import { dateRangeSchema, eventSchema } from './validator.js';
 import { writeFile, mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import config from './config.js';
+import { imageApi } from './image-api.js';
 
 const app = new Hono();
 const prisma = new PrismaClient();
+
+// Mount the image API routes
+app.route('/', imageApi);
 
 // Format date as YYYY-MM-DD
 function formatDate(date: Date): string {
@@ -187,7 +191,7 @@ app.post('/events/upload', async (c) => {
     // Create unique filename using timestamp
     const timestamp = Date.now();
     const filename = `${timestamp}_${file.name}`;
-    const inputPath = config.imagePath(filename);
+    const inputPath = config.imageInputPath(filename);
 
     // Ensure directory exists
     await mkdir(dirname(inputPath), { recursive: true });
