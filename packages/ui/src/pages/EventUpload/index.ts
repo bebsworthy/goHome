@@ -1,1 +1,4 @@
-export { default } from './EventUpload';
+import EventUpload from './EventUpload';
+
+
+export default EventUpload; 
