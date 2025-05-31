@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { stat, readdir, readFile } from 'fs/promises';
+import { stat, readdir, readFile } from 'node:fs/promises';
 import { join } from 'path';
 import config from './config.js';
 import { ImageStatus } from './types.js';
@@ -20,26 +20,27 @@ interface ListImagesResponse {
   pageSize: number;
 }
 
-async function getImagesFromDirectory(dir: string, page: number, pageSize: number): Promise<ListImagesResponse> {
+async function getImagesFromDirectory(status: ImageStatus, page: number, pageSize: number): Promise<ListImagesResponse> {
+  const dir = getDirectoryByStatus(status);
   const files = await readdir(dir);
-  const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file));
+  const imageFiles = files.filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file));
 
   // Get file stats and create image info objects
   const imagesWithStats = await Promise.all(
-    imageFiles.map(async (file) => {
+    imageFiles.map(async (file: string) => {
       const filePath = join(dir, file);
       const stats = await stat(filePath);
       return {
         name: file,
-        path: `/api/local/images/${file}`,
+        path: `/api/local/images/${status}/${file}`,
         lastModified: stats.mtime,
         size: stats.size
-      };
+      } as ImageInfo;
     })
   );
 
   // Sort by last modified date, most recent first
-  const sortedImages = imagesWithStats.sort((a, b) => 
+  const sortedImages = imagesWithStats.sort((a: ImageInfo, b: ImageInfo) => 
     b.lastModified.getTime() - a.lastModified.getTime()
   );
 
@@ -55,6 +56,17 @@ async function getImagesFromDirectory(dir: string, page: number, pageSize: numbe
   };
 }
 
+function getDirectoryByStatus(status: ImageStatus): string {
+  switch (status) {
+    case ImageStatus.DONE:
+      return config.imageDonePath("");
+    case ImageStatus.FAILED:
+      return config.imageFailedPath("");
+    default: // pending
+      return config.imageInputPath("");
+  }
+}
+
 // List images endpoint
 app.get('/images', async (c) => {
   try {
@@ -62,20 +74,9 @@ app.get('/images', async (c) => {
     const page = parseInt(c.req.query('page') || '1');
     const pageSize = parseInt(c.req.query('pageSize') || '10');
 
-    let directory;
-    switch (status) {
-      case ImageStatus.DONE:
-        directory = config.imageDonePath("");
-        break;
-      case ImageStatus.FAILED:
-        directory = config.imageFailedPath("");
-        break;
-      default: // pending
-        directory = config.imageInputPath("");
-        break;
-    }
+    const directory = getDirectoryByStatus(status);
 
-    const response = await getImagesFromDirectory(directory, page, pageSize);
+    const response = await getImagesFromDirectory(status, page, pageSize);
     return c.json(response);
   } catch (error) {
     console.error('Error listing images:', error);
@@ -84,25 +85,12 @@ app.get('/images', async (c) => {
 });
 
 // Serve image files endpoint
-app.get('/images/:filename', async (c) => {
+app.get('/images/:status/:filename', async (c) => {
   try {
     const filename = c.req.param('filename');
-    const status = (c.req.query('status') || ImageStatus.PENDING) as ImageStatus;
+    const status = c.req.param('status') as ImageStatus;
     
-    let directory;
-    switch (status) {
-      case ImageStatus.DONE:
-        directory = config.imageDonePath("");
-        break;
-      case ImageStatus.FAILED:
-        directory = config.imageFailedPath("");
-        break;
-      default: // pending
-        directory = config.imageInputPath("");
-        break;
-    }
-
-
+    const directory = getDirectoryByStatus(status);
     const filePath = join(directory, filename);
     
     try {
