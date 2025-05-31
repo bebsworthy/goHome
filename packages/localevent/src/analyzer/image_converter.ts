@@ -3,36 +3,15 @@ import * as path from 'path';
 import OpenAI from 'openai';
 import { EventInformation } from "./types.js";
 import { saveEvent } from './api_client.js';
+import config, { validateConfig } from '../config.js';
 
-// Load environment variables
-import dotenv from 'dotenv';
-dotenv.config();
-
-// Configuration interface
-interface Config {
-  openApiUrl: string;
-  imageFolder: string;
-  apiKey?: string;
-}
-
-// Load configuration from environment variables
-const config: Config = {
-  openApiUrl: process.env.OPENAI_API_ENDPOINT || '',
-  imageFolder: process.env.EVENT_IMAGE_FOLDER || '',
-  apiKey: process.env.OPENAI_API_KEY,
-};
-
-// Validate configuration
-if (!config.imageFolder || !config.apiKey) {
-  console.error('Error: Required environment variables are not set.');
-  console.error('Please set EVENT_IMAGE_FOLDER and OPENAI_API_KEY');
-  process.exit(1);
-}
+// Validate configuration on startup
+validateConfig();
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  baseURL: config.openApiUrl,
-  apiKey: config.apiKey
+  baseURL: config.openAI.apiUrl,
+  apiKey: config.openAI.apiKey
 });
 
 // Function to check if a file is an image
@@ -116,9 +95,9 @@ export async function processImage(imagePath: string): Promise<EventInformation 
 // Main function to process all images in the directory
 export async function processImagesDirectory() {
   console.log('Starting image processing...');
-  console.log(`Looking for images in: ${config.imageFolder}`);
+  console.log(`Looking for images in: ${config.imagePath()}`);
 
-  const imageFiles = getImageFiles(config.imageFolder);
+  const imageFiles = getImageFiles(config.imagePath());
 
   if (imageFiles.length === 0) {
     console.log('No image files found in the specified directory.');
@@ -128,7 +107,7 @@ export async function processImagesDirectory() {
   console.log(`Found ${imageFiles.length} image(s) to process.`);
 
   for (const imageFile of imageFiles) {
-    const imagePath = path.join(config.imageFolder, imageFile);
+    const imagePath = config.imagePath(imageFile);
     console.log(`\nProcessing: ${imageFile}`);
 
     const eventInfo = await processImage(imagePath);
@@ -141,12 +120,12 @@ export async function processImagesDirectory() {
         await saveEvent(eventInfo);
         
         // Move processed image to DONE folder
-        const doneFolder = path.join(config.imageFolder, 'DONE');
+        const doneFolder = config.donePath();
         if (!fs.existsSync(doneFolder)) {
           fs.mkdirSync(doneFolder);
         }
         
-        const newPath = path.join(doneFolder, imageFile);
+        const newPath = config.donePath(imageFile);
         fs.renameSync(imagePath, newPath);
         console.log(`Moved processed image to ${newPath}`);
       } catch (error) {

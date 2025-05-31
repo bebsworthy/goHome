@@ -12,5 +12,8 @@ export interface EventInformation {
     category?: string | null;
     email?: string | null;
     phone?: string | null;
+    images?: string[];
+    latitude?: number;
+    longitude?: number;
     rawText?: string;
 }

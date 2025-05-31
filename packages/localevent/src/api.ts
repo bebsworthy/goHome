@@ -2,6 +2,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { PrismaClient } from './generated/prisma/client.js';
 import { dateRangeSchema, eventSchema } from './validator.js';
+import { writeFile, mkdir } from 'fs/promises';
+import { dirname } from 'path';
+import config from './config.js';
 
 const app = new Hono();
 const prisma = new PrismaClient();
@@ -162,6 +165,46 @@ app.delete('/events/:id', async (c) => {
     return c.json({ message: 'Event deleted successfully' }, 200);
   } catch (error) {
     console.error('Error deleting event:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Handle image upload for event creation
+app.post('/events/upload', async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return c.json({ error: 'No file provided' }, 400);
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return c.json({ error: 'File must be an image' }, 400);
+    }
+
+    // Create unique filename using timestamp
+    const timestamp = Date.now();
+    const filename = `${timestamp}_${file.name}`;
+    const inputPath = config.imagePath(filename);
+
+    // Ensure directory exists
+    await mkdir(dirname(inputPath), { recursive: true });
+
+    // Convert File to Buffer and save it
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    await writeFile(inputPath, buffer);
+
+    console.log(`Image uploaded successfully: ${inputPath}`);
+
+    return c.json({ 
+      message: 'Image uploaded successfully. The event will be created shortly.',
+      filename 
+    }, 202);
+  } catch (error) {
+    console.error('Error handling image upload:', error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });

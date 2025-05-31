@@ -3,6 +3,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TrainIcon from '@mui/icons-material/Train';
+import UploadIcon from '@mui/icons-material/Upload';
 
 import asyncComponentLoader from '@/utils/loader';
 
@@ -26,6 +27,12 @@ const routes: Routes = [
     path: '/local-events',
     title: 'Local Events',
     icon: HistoryIcon,
+  },
+  {
+    component: asyncComponentLoader(() => import('@/pages/EventUpload')),
+    path: '/event-upload',
+    title: 'Upload Event',
+    icon: UploadIcon,
   },
   {
     component: asyncComponentLoader(() => import('@/pages/Page3')),

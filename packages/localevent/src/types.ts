@@ -12,6 +12,9 @@ export interface Event {
   category?: string;
   email?: string;
   phone?: string;
+  images?: string[];
+  latitude?: number;
+  longitude?: number;
   rawText?: string;
 }
 

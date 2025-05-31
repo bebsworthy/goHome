@@ -14,8 +14,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum EventStatus {
+  NEW
+  PUBLISHED
+  BLOCKED
+}
+
 model Event {
   id          Int       @id @default(autoincrement())
+  status      EventStatus @default(BLOCKED)
   title       String
   dates       DateTime[]
   startTime   String?
@@ -29,6 +36,9 @@ model Event {
   email       String?
   phone       String?
   rawText     String?
+  images      String[]
+  latitude    Float?
+  longitude   Float?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
