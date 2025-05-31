@@ -1,0 +1,27 @@
+{
+  "date": "2025-05-31T20:45:04.079Z",
+  "source": "image_converter",
+  "model": "gemma3",
+  "prompt": "Please analyze this image and extract the following event information:\n  - title the title of the event as written in the image\n  - dates converted to YYYY-MM-DD format, an event is over multiple days this should be an array\n  - time (if available, as written in the image)\n  - startTime (if available, in HH:MM format)\n  - endTime (if available, in HH:MM format)\n  - location (if available, as written in the image)\n  - city (if available)\n  - description\n  - organizer (if available)\n  - price (if available)\n  - category (if you can determine it)\n  - email (if available)\n  - phone (if available)\n  - rawText (all the text that can be extracted from the image a concatenation of all text in the image)\n  \n  If any of these fields are not available leave them out of the response.\n  The image most likely contains a flyer or poster for an event, so please focus on extracting the relevant information.\n  The text of the flying is most likely in French, do not translate it.\n\n  Please format the response as a JSON object with these fields.",
+  "dbId": 217,
+  "data": {
+    "title": "VIKING",
+    "dates": [
+      "2025-06-28",
+      "2025-06-29"
+    ],
+    "time": null,
+    "startTime": null,
+    "endTime": null,
+    "location": "ABBAYE DE JUMIÈGES",
+    "city": null,
+    "description": null,
+    "organizer": "Le comité Jumiè-joies et le Département de la Seine-Maritime",
+    "price": null,
+    "category": "Festival/Event (Viking themed)",
+    "email": null,
+    "phone": null,
+    "rawText": "Le comité Jumiè-joies en fête et le Département de la Seine-Maritime présentent\n\n\nVIKING\n\n\nABBAYE DE JUMIÈGES\n\n28 & 29 JUIN 2025"
+  },
+  "error": null
+}

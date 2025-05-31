@@ -1,0 +1,26 @@
+{
+  "date": "2025-05-31T20:37:21.141Z",
+  "source": "image_converter",
+  "model": "gemma3",
+  "prompt": "Please analyze this image and extract the following event information:\n  - title the title of the event as written in the image\n  - dates converted to YYYY-MM-DD format, an event is over multiple days this should be an array\n  - time (if available, as written in the image)\n  - startTime (if available, in HH:MM format)\n  - endTime (if available, in HH:MM format)\n  - location (if available, as written in the image)\n  - city (if available)\n  - description\n  - organizer (if available)\n  - price (if available)\n  - category (if you can determine it)\n  - email (if available)\n  - phone (if available)\n  - rawText (all the text that can be extracted from the image a concatenation of all text in the image)\n  \n  If any of these fields are not available leave them out of the response.\n  The image most likely contains a flyer or poster for an event, so please focus on extracting the relevant information.\n  The text of the flying is most likely in French, do not translate it.\n\n  Please format the response as a JSON object with these fields.",
+  "dbId": 212,
+  "data": {
+    "title": "SAMEDI 24 MAI",
+    "dates": [
+      "2025-05-24"
+    ],
+    "time": "16h",
+    "startTime": "16h",
+    "endTime": null,
+    "location": "École J. Prévert • Rue de la Grève",
+    "city": null,
+    "description": "MAIS AUSSI :    BOISSONS LOCALES ET FOODTRUCKS    MARCHÉ ARTISANAL    JEUX FAMILIAUX POUR PETITS ET GRANDS    EXPOSITION DE VIEUX TRACTEURS    EXPOSITION PHOTO...",
+    "organizer": null,
+    "price": null,
+    "category": "Blues Festival",
+    "email": null,
+    "phone": null,
+    "rawText": "SAMEDI 24 MAI\n\nÉCOLE J. PRÉVERT • RUE DE LA GRÈVE\n\nOUVERTURE DES PORTES 16H\n\n17H • ADY ONE BAND\n\n18H30 • MACADAM FARMER\n\n20H30 • LES COBRAS\n\nMAIS AUSSI :\nBOISSONS LOCALES ET FOODTRUCKS\nMARCHÉ ARTISANAL\nJEUX FAMILIAUX POUR PETITS ET GRANDS\nEXPOSITION DE VIEUX TRACTEURS\nEXPOSITION PHOTO…"
+  },
+  "error": null
+}

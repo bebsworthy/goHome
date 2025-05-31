@@ -1,0 +1,26 @@
+{
+  "date": "2025-05-31T20:35:41.028Z",
+  "source": "image_converter",
+  "model": "gemma3",
+  "prompt": "Please analyze this image and extract the following event information:\n  - title the title of the event as written in the image\n  - dates converted to YYYY-MM-DD format, an event is over multiple days this should be an array\n  - time (if available, as written in the image)\n  - startTime (if available, in HH:MM format)\n  - endTime (if available, in HH:MM format)\n  - location (if available, as written in the image)\n  - city (if available)\n  - description\n  - organizer (if available)\n  - price (if available)\n  - category (if you can determine it)\n  - email (if available)\n  - phone (if available)\n  - rawText (all the text that can be extracted from the image a concatenation of all text in the image)\n  \n  If any of these fields are not available leave them out of the response.\n  The image most likely contains a flyer or poster for an event, so please focus on extracting the relevant information.\n  The text of the flying is most likely in French, do not translate it.\n\n  Please format the response as a JSON object with these fields.",
+  "dbId": 210,
+  "data": {
+    "title": "FÊTE DU VILLAGE",
+    "dates": [
+      "2023-06-21"
+    ],
+    "time": "16h",
+    "startTime": "16:00",
+    "endTime": null,
+    "location": "le stade du village",
+    "city": null,
+    "description": "Animations pour enfants et grands jeux géants sculpteur de ballons panier garni à peser (2€ la pesée) soirée dansante animée par E. organis feu d'artifice offert par la mairie Feu de la Saint Jean",
+    "organizer": "E.",
+    "price": "2€ la pesée",
+    "category": null,
+    "email": null,
+    "phone": null,
+    "rawText": "FÊTE DU VILLAGE\n\nRENDEZ-VOUS sur la stade du village.\n\nSAMEDI 21 JUIN\n\nÀ PARTIR DE 16H\n\nAnimations pour enfants et grands jeux géants\nsculpteur de ballons\npaniér garni à peser (2€ la pesée)\nsoirée dansante animée par E. organis\nfeu d'artifice offert par la mairie\nFeu de la Saint Jean"
+  },
+  "error": null
+}

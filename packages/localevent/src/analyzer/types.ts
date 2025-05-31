@@ -1,4 +1,4 @@
-export interface EventInformation {
+export interface LlmEventInformation {
     title: string;
     dates: string[];
     time?: string;

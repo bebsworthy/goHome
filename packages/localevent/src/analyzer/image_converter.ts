@@ -1,11 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import OpenAI from 'openai';
-import { EventInformation } from "./types.js";
+import { LlmEventInformation } from "./types.js";
 import { saveEvent } from './api_client.js';
 import config, { validateConfig } from '../config.js';
 import { ImageStatus } from '../types.js';
 import { getDirectoryByStatus } from '../image-api.js';
+import { CreateEventInput } from '../validator.js';
 
 // Validate configuration on startup
 validateConfig();
@@ -57,7 +58,7 @@ const getImageFiles = (directory: string): string[] => {
 };
 
 // Function to process an image with OpenAI Vision
-export async function processImage(imagePath: string): Promise<EventInformation | null> {
+export async function processImage(imagePath: string): Promise<LlmEventInformation | null> {
   try {
     const imageData = await fs.promises.readFile(imagePath);
     const base64Image = imageData.toString('base64');
@@ -90,26 +91,31 @@ export async function processImage(imagePath: string): Promise<EventInformation 
       throw new Error('No content in response');
     }
 
-    return JSON.parse(content) as EventInformation;
+    return JSON.parse(content) as LlmEventInformation;
   } catch (error) {
     console.error(`Error processing image ${imagePath}:`, error);
     return null;
   }
 }
 
-export async function moveImageToStatusFolder(imagePath: string, status: ImageStatus, metadata?: any) {
+export async function moveImageToStatusFolder(imagePath: string, status: ImageStatus, metadata?: any): Promise<string | never> {
   const statusFolder = getDirectoryByStatus(status);
   if (!fs.existsSync(statusFolder)) {
     fs.mkdirSync(statusFolder, { recursive: true });
   }
   const imageName = path.basename(imagePath);
-  const newPath = path.join(statusFolder, imageName);
+  // TODO: rename image to something unique to avoid conflicts
+  // For now, we just keep the original name, but this should be improved
+  // e.g. by changing to a timestamp or a UUID
+  const newImageName = imageName; 
+  const newPath = path.join(statusFolder, newImageName);
   try {
     fs.renameSync(imagePath, newPath);
     fs.writeFileSync(newPath + '.metadata.json', JSON.stringify(metadata || {}, null, 2));
-    console.log(`Moved image ${imageName} to ${status} folder.`);
+    console.log(`Moved image ${newImageName} to ${status} folder.`);
+    return path.relative(config.imageFolder, newPath);
   } catch (error) {
-    console.error(`Failed to move image ${imageName} to ${status} folder:`, error);
+    console.error(`Failed to move image ${newImageName} to ${status} folder:`, error);
     throw error;
   }
 }
@@ -159,7 +165,7 @@ const fixEmailFormat = (email: string | null | undefined): string | undefined =>
   return email.trim();
 }
 
-export function fixEventInfo(eventInfo: EventInformation): EventInformation {
+export function fixEventInfo(eventInfo: LlmEventInformation): CreateEventInput {
   return {
     ...eventInfo,
     startTime: fixTimeFormat(eventInfo.startTime),
@@ -173,7 +179,7 @@ export function fixEventInfo(eventInfo: EventInformation): EventInformation {
     category: eventInfo.category?.trim() || undefined,
     email: fixEmailFormat(eventInfo.email),
     phone: fixPhoneFormat(eventInfo.phone),
-    rawText: eventInfo.rawText?.trim() || undefined
+    rawText: eventInfo.rawText?.trim() || undefined,
   };
 }
 
@@ -204,7 +210,7 @@ export async function processImagesDirectory() {
   for (const imageFile of imageFiles) {
     const imagePath = config.imageInputPath(imageFile);
     console.log(`\nProcessing: ${imageFile}`);
-    let eventInfo: EventInformation | null | undefined = null;
+    let eventInfo: LlmEventInformation | null | undefined = null;
     try {
       eventInfo = await processImage(imagePath);
 
@@ -217,12 +223,15 @@ export async function processImagesDirectory() {
         console.log(JSON.stringify(fixedEventInfo, null, 2));
 
         const result = await saveEvent(fixedEventInfo);
-        moveImageToStatusFolder(imagePath, ImageStatus.DONE, makeImageProcessingInfo(eventInfo, result.event.id));
+
+        const newImagePath = await moveImageToStatusFolder(imagePath, ImageStatus.DONE, makeImageProcessingInfo(eventInfo, result.id));
+        console.log(`Image moved to ${newImagePath}`);
+      
       } else {
         throw new Error('Model failed to extract information from the image.');
       }
     } catch (error) {
-      console.error('Failed to save event, xxx', error);
+      console.error('Failed to save event', error);
       moveImageToStatusFolder(imagePath, ImageStatus.FAILED, makeImageProcessingInfo(eventInfo, '', error));
     }
   }

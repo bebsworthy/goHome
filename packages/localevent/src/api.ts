@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Prisma, PrismaClient, type Event as DbEvent } from './generated/prisma/client.js';
-import { dateRangeSchema, eventSchema } from './validator.js';
+import { dateRangeSchema, CreateEventInputSchema } from './validator.js';
 import { writeFile, mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import config from './config.js';
@@ -83,8 +83,17 @@ function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+export const EventIncludeDuplicates = {
+  duplicates: {
+    select: {
+      id: true,
+    }
+  }
+};
+export type DbEventWithDuplicatesId = Prisma.EventGetPayload<{ include: typeof EventIncludeDuplicates }>
+
 // Format event response by converting dates to YYYY-MM-DD format
-const formatEventResponse = (event: DbEvent) => {
+const formatEventResponse = (event: DbEventWithDuplicatesId) => {
   return {
     ...event,
     dates: event.dates.map((d: Date) => formatDate(d)),
@@ -95,6 +104,8 @@ const formatEventResponse = (event: DbEvent) => {
     duplicateOfId: event.duplicateOfId || null
   };
 }
+
+export type EventResponse = ReturnType<typeof formatEventResponse>;
 
 // Get events within a date range
 app.get('/events', async (c) => {
@@ -128,7 +139,8 @@ app.get('/events', async (c) => {
       },
       orderBy: {
         dates: 'asc'
-      }
+      },
+      include: EventIncludeDuplicates
     });
 
     return c.json({
@@ -153,8 +165,9 @@ app.get('/events/:id', async (c) => {
       return c.json({ error: 'Invalid event ID' }, 400);
     }
 
-    const event: DbEvent | null = await prisma.event.findUnique({
-      where: { id }
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: EventIncludeDuplicates
     });
 
     if (!event) {
@@ -168,11 +181,12 @@ app.get('/events/:id', async (c) => {
   }
 });
 
+
 // Create a new event
 app.post('/events', async (c) => {
   try {
     const body = await c.req.json();
-    const validatedData = eventSchema.parse(body);
+    const validatedData = CreateEventInputSchema.parse(body);
     
     // Convert string dates to Date objects and ensure they are valid
     const eventDates = validatedData.dates.map(date => {
@@ -198,22 +212,13 @@ app.post('/events', async (c) => {
           duplicateOfId: potentialDuplicates[0].id,
           similarityScore: potentialDuplicates[0].similarityScore
         })
-      }
+      },
+      include: EventIncludeDuplicates
     });
     
     // If there are potential duplicates, include them in the response
     // @TODO: This code is a mess
-    const response = {
-      event: formatEventResponse(event),
-      ...(potentialDuplicates.length > 0 && {
-        potentialDuplicates: await Promise.all(
-          potentialDuplicates.map(async (dup) => ({
-            event: formatEventResponse((await prisma.event.findUnique({ where: { id: dup.id } }))!),
-            similarityScore: dup.similarityScore
-          }))
-        )
-      })
-    };
+    const response = formatEventResponse(event)
 
     return c.json(response, 201);
   } catch (error) {
@@ -240,7 +245,7 @@ app.put('/events/:id', async (c) => {
     }
 
     const body = await c.req.json();
-    const validatedData = eventSchema.parse(body);
+    const validatedData = CreateEventInputSchema.parse(body);
     
     // Convert and validate dates
     const eventDates = validatedData.dates.map(date => {
@@ -256,7 +261,8 @@ app.put('/events/:id', async (c) => {
       data: {
         ...validatedData,
         dates: eventDates,
-      }
+      },
+      include: EventIncludeDuplicates
     });
     
     return c.json(formatEventResponse(updatedEvent));

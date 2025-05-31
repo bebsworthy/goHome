@@ -1,0 +1,26 @@
+{
+  "date": "2025-05-31T20:22:28.138Z",
+  "source": "image_converter",
+  "model": "gemma3",
+  "prompt": "Please analyze this image and extract the following event information:\n  - title the title of the event as written in the image\n  - dates converted to YYYY-MM-DD format, an event is over multiple days this should be an array\n  - time (if available, as written in the image)\n  - startTime (if available, in HH:MM format)\n  - endTime (if available, in HH:MM format)\n  - location (if available, as written in the image)\n  - city (if available)\n  - description\n  - organizer (if available)\n  - price (if available)\n  - category (if you can determine it)\n  - email (if available)\n  - phone (if available)\n  - rawText (all the text that can be extracted from the image a concatenation of all text in the image)\n  \n  If any of these fields are not available leave them out of the response.\n  The image most likely contains a flyer or poster for an event, so please focus on extracting the relevant information.\n  The text of the flying is most likely in French, do not translate it.\n\n  Please format the response as a JSON object with these fields.",
+  "dbId": 196,
+  "data": {
+    "title": "YOGA DU RIRE",
+    "dates": [
+      "2023-06-04"
+    ],
+    "time": "20h15",
+    "startTime": "20:15",
+    "endTime": null,
+    "location": null,
+    "city": "Saint-Leu-la-Forêt",
+    "description": "Libérer les stress \nÉvacuer les tensions \nFaire le plein de positif",
+    "organizer": null,
+    "price": "15€/personne",
+    "category": "Yoga",
+    "email": null,
+    "phone": null,
+    "rawText": "YOGA DU RIRE\n\nMERCREDI 4 JUIN\n\nÀ 20h15\n\nATELIER D'1H15\n\nLibérer les stress\nÉvacuer les tensions\nFaire le plein de positif\n\nSur inscription\n06.62.56.68\n\nSaint-Leu-la-Forêt\n\n15€/personne"
+  },
+  "error": null
+}
