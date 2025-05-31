@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Typography, List, Card, Space, Spin, Tag, DatePicker, Radio, Button, message, Modal } from 'antd';
-import { EditOutlined, DeleteOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { Typography, List, Space, Spin, DatePicker, Radio, Button, message, Modal } from 'antd';
+import { ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEvents } from '@/hooks/useEvents';
 import dayjs from 'dayjs';
 import type { Event } from '@/utils/localeventApi';
 import { EditEventForm } from './EditEventForm';
+import { EventCard } from './EventCard';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
@@ -29,19 +30,6 @@ function formatDateRange(range: DateRange<dayjs.Dayjs>): { start: string; end: s
     start: range[0]?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'),
     end: range[1]?.format('YYYY-MM-DD') || dayjs().add(15, 'day').format('YYYY-MM-DD')
   };
-}
-
-function formatDate(dates: string[]): string {
-  if (dates.length === 1) {
-    return new Date(dates[0]).toLocaleDateString();
-  }
-  return `${new Date(dates[0]).toLocaleDateString()} - ${new Date(dates[dates.length - 1]).toLocaleDateString()}`;
-}
-
-function formatTime(startTime?: string, endTime?: string): string {
-  if (!startTime) return '';
-  if (!endTime) return startTime;
-  return `${startTime} - ${endTime}`;
 }
 
 function LocalEventPage() {
@@ -215,67 +203,16 @@ function LocalEventPage() {
         ) : (
           <List
             dataSource={events}
+            grid={{ gutter: 16, xs: 1, sm: 1, md: 2, lg: 2, xl: 3, xxl: 4 }}
             renderItem={(event) => (
               <List.Item key={event.id}>
-                <Card 
-                  style={{ width: '100%' }}
-                  extra={
-                    <Space>
-                      <Button
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditClick(event)}
-                        loading={isUpdating}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDeleteClick(event)}
-                        loading={isDeleting}
-                      >
-                        Delete
-                      </Button>
-                    </Space>
-                  }
-                >
-                  <Title level={4} style={{ marginTop: 0 }}>{event.title}</Title>
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                    <Text type="secondary">
-                      {formatDate(event.dates)}
-                      {event.startTime && (
-                        <> • {formatTime(event.startTime, event.endTime)}</>
-                      )}
-                    </Text>
-                    <Text>
-                      {event.location}
-                      {event.city && <>, {event.city}</>}
-                    </Text>
-                    {event.description && (
-                      <Text type="secondary">{event.description}</Text>
-                    )}
-                    {event.images && event.images.length > 0 && (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                        {event.images.map((image, index) => (
-                          <img
-                            key={index}
-                            src={`/api/local/events/${event.id}/images/${image}`}
-                            alt={`Event ${event.title} image ${index + 1}`}
-                            style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    <Space size={[0, 8]} wrap>
-                      {event.price && (
-                        <Tag color="blue">{event.price}</Tag>
-                      )}
-                      {event.category && (
-                        <Tag>{event.category}</Tag>
-                      )}
-                    </Space>
-                  </Space>
-                </Card>
+                <EventCard
+                  event={event}
+                  onEdit={handleEditClick}
+                  onDelete={handleDeleteClick}
+                  isUpdating={isUpdating}
+                  isDeleting={isDeleting}
+                />
               </List.Item>
             )}
           />
