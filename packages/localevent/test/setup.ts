@@ -15,8 +15,26 @@ function validateEnvVar(name: string): string {
   return value;
 }
 
+function validateTestDatabase() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error('DATABASE_URL environment variable is missing');
+  }
+  
+  if (!dbUrl.includes('_test')) {
+    throw new Error(
+      'Test suite can only run against databases with "_test" in their name.\n' +
+      'This is a safety measure to prevent accidental use of production databases.\n' +
+      'Current DATABASE_URL: ' + dbUrl
+    );
+  }
+}
+
 // Load test environment variables
 beforeAll(() => {
+  // First check any existing DATABASE_URL
+  validateTestDatabase();
+
   console.log('Loading test environment variables...');
   const envPath = resolve(__dirname, '../.env.test');
   console.log('Looking for .env.test at:', envPath);
@@ -28,19 +46,27 @@ beforeAll(() => {
     );
   }
 
+  // First check DATABASE_URL from any source (process.env has priority)
+  let dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error('DATABASE_URL environment variable is missing');
+  }
+  
+  if (!dbUrl.includes('_test')) {
+    throw new Error(
+      'Test suite can only run against databases with "_test" in their name.\n' +
+      'This is a safety measure to prevent accidental use of production databases.\n' +
+      'Current DATABASE_URL: ' + dbUrl
+    );
+  }
+
   // Load .env.test file from the server package directory
   const result = config({
     path: envPath,
-    override: true // Override any existing env vars
+    override: false // Don't override existing env vars
   });
 
   console.log('Dotenv result:', result);
-  // console.log('Current working directory:', process.cwd());
-  // console.log('Current environment:', {
-  //   SNCF_API_KEY: process.env.SNCF_API_KEY ? '[REDACTED]' : undefined,
-  //   TEST_SNCF_FROM_STATION_ID: process.env.TEST_SNCF_FROM_STATION_ID,
-  //   TEST_SNCF_TO_STATION_ID: process.env.TEST_SNCF_TO_STATION_ID
-  // });
 
   if (!result.parsed) {
     throw new Error(
@@ -50,8 +76,22 @@ beforeAll(() => {
     );
   }
 
-  // Validate required environment variables
+  // Revalidate DATABASE_URL after loading .env.test
+  dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error('DATABASE_URL environment variable is missing');
+  }
+  
+  if (!dbUrl.includes('_test')) {
+    throw new Error(
+      'Test suite can only run against databases with "_test" in their name.\n' +
+      'This is a safety measure to prevent accidental use of production databases.\n' +
+      'Current DATABASE_URL: ' + dbUrl
+    );
+  }
+
+  // Validate other required environment variables
   // validateEnvVar('SNCF_API_KEY');
   // validateEnvVar('TEST_SNCF_FROM_STATION_ID');
   // validateEnvVar('TEST_SNCF_TO_STATION_ID');
-}); 
+});

@@ -3,49 +3,14 @@ import { Upload, Typography, App } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import type { RcFile } from 'antd/es/upload/interface';
-import { DuplicateEventWarning } from '@/components/DuplicateEventWarning';
 import type { DuplicateInfo } from '@/utils/localeventApi';
-import { useNavigate } from 'react-router-dom';
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;
 
 function EventUpload() {
   const { message } = App.useApp();
-  const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
-  const [duplicates, setDuplicates] = useState<DuplicateInfo[] | null>(null);
-  const [pendingEvent, setPendingEvent] = useState<any>(null);
-
-  const handleDuplicateConfirm = async () => {
-    try {
-      const response = await fetch('/api/local/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pendingEvent)
-      });
-
-      if (!response.ok) throw new Error('Failed to create event');
-
-      const result = await response.json();
-      message.success('Event created successfully!');
-      setDuplicates(null);
-      setPendingEvent(null);
-      navigate(`/events/${result.event.id}`);
-    } catch (error) {
-      message.error('Failed to create event');
-      console.error('Error creating event:', error);
-    }
-  };
-
-  const handleDuplicateCancel = () => {
-    setDuplicates(null);
-    setPendingEvent(null);
-  };
-
-  const handleViewDuplicate = (eventId: number) => {
-    navigate(`/events/${eventId}`);
-  };
 
   const uploadProps: UploadProps = {
     name: 'file',
@@ -72,17 +37,7 @@ function EventUpload() {
       setUploading(false);
       
       if (status === 'done' && response) {
-        // If there are potential duplicates, show the warning
-        if (response.potentialDuplicates?.length > 0) {
-          setDuplicates(response.potentialDuplicates);
-          setPendingEvent(response.event);
-        } else {
-          // No duplicates, show success message
-          message.success(response.message || 'Event created successfully!');
-          if (response.event?.id) {
-            navigate(`/events/${response.event.id}`);
-          }
-        }
+        message.success(response.message || 'We will analyze the image and create events!');
       } else if (status === 'error') {
         const errorMsg = response?.error || 'Failed to upload image.';
         message.error(errorMsg);

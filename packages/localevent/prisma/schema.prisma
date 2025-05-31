@@ -22,7 +22,7 @@ enum EventStatus {
 
 model Event {
   id          Int       @id @default(autoincrement())
-  status      EventStatus @default(BLOCKED)
+  status      EventStatus @default(NEW)
   title       String
   dates       DateTime[]
   startTime   String?
