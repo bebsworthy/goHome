@@ -3,6 +3,50 @@ import { PrismaClient } from '../../src/generated/prisma/client';
 import { app } from '../../src/api';
 import { serve } from '@hono/node-server';
 
+interface Event {
+  id: number;
+  title: string;
+  dates: string[];
+  location: string;
+  city?: string;
+  startTime?: string;
+  endTime?: string;
+  description?: string;
+  duplicateOfId?: number | null;
+}
+
+interface DuplicateInfo {
+  event: Event;
+  similarityScore: number;
+}
+
+interface CreateEventResponse {
+  event: Event;
+  potentialDuplicates?: DuplicateInfo[];
+}
+
+interface EventResponse {
+  events: Event[];
+  count: number;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
+
+interface ErrorResponse {
+  error: string;
+  details?: Array<{
+    code: string;
+    message: string;
+    path: string[];
+  }>;
+}
+
+interface DeleteResponse {
+  message: string;
+}
+
 const prisma = new PrismaClient();
 const TEST_PORT = 3001;
 let server: ReturnType<typeof serve>;
@@ -140,8 +184,8 @@ describe('Events API Integration Tests', () => {
       });
 
       expect(response.status).toBe(201);
-      const data = await response.json() as Event;
-      expect(data).toMatchObject({
+      const data = await response.json() as CreateEventResponse;
+      expect(data.event).toMatchObject({
         ...newEvent,
         id: expect.any(Number),
       });
@@ -164,6 +208,176 @@ describe('Events API Integration Tests', () => {
       const data = await response.json() as ErrorResponse;
       expect(data.error).toBeDefined();
     });
+
+    describe('Duplicate Detection', () => {
+      it('should create event without duplicates when no similar events exist', async () => {
+        const newEvent = {
+          title: 'Unique Concert Event',
+          dates: ['2025-07-01'],
+          location: 'Concert Hall',
+          city: 'New York',
+          startTime: '19:00',
+          endTime: '22:00'
+        };
+
+        const response = await fetch(`http://localhost:${TEST_PORT}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newEvent)
+        });
+
+        expect(response.status).toBe(201);
+        const data = await response.json() as CreateEventResponse;
+        expect(data.event).toMatchObject({
+          ...newEvent,
+          id: expect.any(Number)
+        });
+        expect(data.potentialDuplicates).toBeUndefined();
+      });
+
+      it('should detect duplicates when similar events exist', async () => {
+        // First create an event
+        const existingEvent = {
+          title: 'Rock Music Festival 2025',
+          dates: ['2025-08-01', '2025-08-02'],
+          location: 'Central Park',
+          city: 'New York',
+          startTime: '12:00',
+          endTime: '23:00'
+        };
+
+        const existingResponse = await fetch(`http://localhost:${TEST_PORT}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(existingEvent)
+        });
+
+        const existing = await existingResponse.json() as CreateEventResponse;
+        expect(existingResponse.status).toBe(201);
+
+        // Now try to create a similar event
+        const similarEvent = {
+          title: 'Rock Music Fest 2025', // Very similar title
+          dates: ['2025-08-02', '2025-08-03'], // Overlapping dates
+          location: 'Central Park',
+          city: 'New York', // Same city
+          startTime: '14:00',
+          endTime: '23:00'
+        };
+
+        const response = await fetch(`http://localhost:${TEST_PORT}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(similarEvent)
+        });
+
+        expect(response.status).toBe(201);
+        const data = await response.json() as CreateEventResponse;
+        
+        // Verify duplicate detection
+        expect(data.potentialDuplicates).toBeDefined();
+        if (!data.potentialDuplicates) {
+          throw new Error('Expected potentialDuplicates to be defined');
+        }
+        expect(data.potentialDuplicates).toHaveLength(1);
+        const duplicate = data.potentialDuplicates[0];
+        expect(duplicate).toMatchObject({
+          event: expect.objectContaining({
+            id: existing.event.id,
+            title: existingEvent.title
+          }),
+          similarityScore: expect.any(Number)
+        });
+        expect(duplicate.similarityScore).toBeGreaterThanOrEqual(0.8);
+
+        // Verify the new event was created and marked as a duplicate
+        expect(data.event).toMatchObject({
+          ...similarEvent,
+          id: expect.any(Number),
+          duplicateOfId: existing.event.id
+        });
+      });
+
+      it('should not detect duplicates when events are in different cities', async () => {
+        // First create an event in New York
+        const existingEvent = {
+          title: 'Summer Music Festival',
+          dates: ['2025-09-01'],
+          location: 'Central Park',
+          city: 'New York',
+          startTime: '12:00',
+          endTime: '22:00'
+        };
+
+        const existingResponse = await fetch(`http://localhost:${TEST_PORT}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(existingEvent)
+        });
+        expect(existingResponse.status).toBe(201);
+
+        // Create similar event in a different city
+        const similarEvent = {
+          title: 'Summer Music Festival', // Same title
+          dates: ['2025-09-01'], // Same date
+          location: 'Grant Park',
+          city: 'Chicago', // Different city
+          startTime: '12:00',
+          endTime: '22:00'
+        };
+
+        const response = await fetch(`http://localhost:${TEST_PORT}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(similarEvent)
+        });
+
+        expect(response.status).toBe(201);
+        const data = await response.json() as CreateEventResponse;
+        expect(data.potentialDuplicates).toBeUndefined();
+        expect(data.event.duplicateOfId).toBeNull();
+      });
+
+      it('should not detect duplicates when dates do not overlap', async () => {
+        // First create an event
+        const existingEvent = {
+          title: 'Annual Tech Conference',
+          dates: ['2025-10-01', '2025-10-02'],
+          location: 'Convention Center',
+          city: 'New York',
+          startTime: '09:00',
+          endTime: '17:00'
+        };
+
+        const existingResponse = await fetch(`http://localhost:${TEST_PORT}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(existingEvent)
+        });
+        expect(existingResponse.status).toBe(201);
+
+        // Create similar event with non-overlapping dates
+        const similarEvent = {
+          title: 'Annual Tech Conference', // Same title
+          dates: ['2025-10-15', '2025-10-16'], // Different dates
+          location: 'Convention Center',
+          city: 'New York',
+          startTime: '09:00',
+          endTime: '17:00'
+        };
+
+        const response = await fetch(`http://localhost:${TEST_PORT}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(similarEvent)
+        });
+
+        expect(response.status).toBe(201);
+        const data = await response.json() as CreateEventResponse;
+        expect(data.potentialDuplicates).toBeUndefined();
+        expect(data.event.duplicateOfId).toBeNull();
+      });
+    });
   });
 
   describe('PUT /events/:id', () => {
@@ -178,7 +392,11 @@ describe('Events API Integration Tests', () => {
           location: 'Test Location',
         }),
       });
-      const created = (await createResponse.json()) as Event;
+      const data = await createResponse.json() as CreateEventResponse;
+      if (!data.event) {
+        throw new Error('Expected event to be defined in response');
+      }
+      const created = data.event;
 
       // Now update it
       const updateResponse = await fetch(`http://localhost:${TEST_PORT}/events/${created.id}`, {
@@ -188,11 +406,14 @@ describe('Events API Integration Tests', () => {
           title: 'Updated Test Event',
           dates: ['2025-06-02'],
           location: 'Updated Location',
+          // API requires these fields
+          startTime: '09:00',
+          endTime: '17:00'
         }),
       });
 
       expect(updateResponse.status).toBe(200);
-      const updated = (await updateResponse.json()) as Event;
+      const updated = await updateResponse.json() as Event;
       expect(updated.title).toBe('Updated Test Event');
       expect(updated.location).toBe('Updated Location');
     });
@@ -224,7 +445,11 @@ describe('Events API Integration Tests', () => {
           location: 'Test Location',
         }),
       });
-      const created = (await createResponse.json()) as Event;
+      const data = await createResponse.json() as CreateEventResponse;
+      if (!data.event) {
+        throw new Error('Expected event to be defined in response');
+      }
+      const created = data.event;
 
       // Now delete it
       const deleteResponse = await fetch(`http://localhost:${TEST_PORT}/events/${created.id}`, {
@@ -232,8 +457,8 @@ describe('Events API Integration Tests', () => {
       });
 
       expect(deleteResponse.status).toBe(200);
-      const data = (await deleteResponse.json()) as DeleteResponse;
-      expect(data.message).toBe('Event deleted successfully');
+      const deleteResult = await deleteResponse.json() as DeleteResponse;
+      expect(deleteResult.message).toBe('Event deleted successfully');
 
       // Verify it's gone
       const getResponse = await fetch(`http://localhost:${TEST_PORT}/events/${created.id}`);

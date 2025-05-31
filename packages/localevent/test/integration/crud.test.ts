@@ -2,6 +2,32 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from '../../src/api';
 import { PrismaClient } from '../../src/generated/prisma/client';
 
+interface Event {
+  id: number;
+  title: string;
+  dates: string[];
+  location: string;
+  city?: string;
+  startTime?: string;
+  endTime?: string;
+  description?: string;
+  duplicateOfId?: number | null;
+}
+
+interface DuplicateInfo {
+  event: Event;
+  similarityScore: number;
+}
+
+interface CreateEventResponse {
+  event: Event;
+  potentialDuplicates?: DuplicateInfo[];
+}
+
+interface DeleteResponse {
+  message: string;
+}
+
 const prisma = new PrismaClient();
 
 describe('Event CRUD Operations', () => {
@@ -38,12 +64,12 @@ describe('Event CRUD Operations', () => {
     });
 
     expect(res.status).toBe(201);
-    const event = await res.json();
-    expect(event).toMatchObject({
+    const data = await res.json() as CreateEventResponse;
+    expect(data.event).toMatchObject({
       ...testEvent,
       dates: testEvent.dates.map(d => expect.any(String)),
     });
-    createdEventId = event.id;
+    createdEventId = data.event.id;
   });
 
   it('should fail to create an event with invalid data', async () => {
@@ -67,9 +93,10 @@ describe('Event CRUD Operations', () => {
   it('should get an event by ID', async () => {
     const res = await app.request(`/events/${createdEventId}`);
     expect(res.status).toBe(200);
-    const event = await res.json();
+    const event = await res.json() as Event;
     expect(event).toMatchObject({
       ...testEvent,
+      id: expect.any(Number),
       dates: testEvent.dates.map(d => expect.any(String)),
     });
   });
@@ -88,9 +115,10 @@ describe('Event CRUD Operations', () => {
     });
 
     expect(res.status).toBe(200);
-    const event = await res.json();
+    const event = await res.json() as Event;
     expect(event).toMatchObject({
       ...updatedEvent,
+      id: expect.any(Number),
       dates: updatedEvent.dates.map(d => expect.any(String)),
     });
   });
@@ -113,8 +141,8 @@ describe('Event CRUD Operations', () => {
     });
 
     expect(res.status).toBe(200);
-    const result = await res.json();
-    expect(result).toHaveProperty('message', 'Event deleted successfully');
+    const result = await res.json() as DeleteResponse;
+    expect(result.message).toBe('Event deleted successfully');
 
     // Verify the event was deleted
     const getRes = await app.request(`/events/${createdEventId}`);

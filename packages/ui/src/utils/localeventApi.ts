@@ -14,6 +14,18 @@ export interface Event {
   category?: string;
   email?: string;
   phone?: string;
+  duplicateOfId?: number;
+  similarityScore?: number;
+}
+
+export interface DuplicateInfo {
+  event: Event;
+  similarityScore: number;
+}
+
+export interface CreateEventResponse {
+  event: Event;
+  potentialDuplicates?: DuplicateInfo[];
 }
 
 export interface EventsResponse {

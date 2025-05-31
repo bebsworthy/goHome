@@ -38,5 +38,6 @@ export function useEvents(dateRange: DateRange) {
     deleteEvent: deleteEventMutation,
     isUpdating,
     isDeleting,
+    mutate: () => queryClient.invalidateQueries({ queryKey })
   };
 }

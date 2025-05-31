@@ -31,11 +31,13 @@
     "node-fetch": "^3.3.2",
     "openai": "^5.0.1",
     "prisma": "^6.8.2",
+    "string-similarity": "^4.0.4",
     "zod": "^3.25.17"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.69.1",
     "@types/node": "^20.17.50",
+    "@types/string-similarity": "^4.0.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",

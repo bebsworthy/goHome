@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Typography, List, Card, Space, Spin, Tag, DatePicker, Radio, Button, message, Modal } from 'antd';
-import { EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, ExclamationCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEvents } from '@/hooks/useEvents';
 import dayjs from 'dayjs';
 import type { Event } from '@/utils/localeventApi';
@@ -48,15 +48,19 @@ function LocalEventPage() {
   const [dateRange, setDateRange] = useState<DateRange<dayjs.Dayjs>>(getDefaultDateRange());
   const [quickSelect, setQuickSelect] = useState<QuickSelect>('next15Days');
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [duplicates, setDuplicates] = useState<Array<{ event: Event; similarityScore: number }>>([]);
   const [modal, contextHolder] = Modal.useModal();
+
   const { 
     data: events = [], 
     isLoading, 
     error, 
     updateEvent, 
-    deleteEvent, 
+    deleteEvent,
     isUpdating, 
-    isDeleting
+    isDeleting,
+    mutate: refreshEvents
   } = useEvents(formatDateRange(dateRange));
 
   const handleQuickSelectChange = (value: QuickSelect) => {
@@ -118,6 +122,44 @@ function LocalEventPage() {
     });
   };
 
+  const handleCreateClick = () => {
+    setIsCreating(true);
+  };
+
+  const handleCreateCancel = () => {
+    setIsCreating(false);
+    setDuplicates([]);
+  };
+
+  const handleCreateSave = async (newEvent: Event) => {
+    try {
+      const response = await fetch('/api/local/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEvent)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create event');
+      }
+
+      if (result.potentialDuplicates?.length > 0) {
+        setDuplicates(result.potentialDuplicates);
+        return;
+      }
+
+      message.success('Event created successfully');
+      setIsCreating(false);
+      setDuplicates([]);
+      refreshEvents();
+    } catch (error) {
+      message.error('Failed to create event');
+      console.error('Failed to create event:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
@@ -140,8 +182,17 @@ function LocalEventPage() {
     <div style={{ padding: 24 }}>
       {contextHolder}
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <div>
-          <Title level={2}>Local Events</Title>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={2}>Local Events</Title>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              onClick={handleCreateClick}
+            >
+              Add Event
+            </Button>
+          </div>
           <Space direction="vertical" size="middle">
             <Radio.Group value={quickSelect} onChange={(e) => handleQuickSelectChange(e.target.value)}>
               <Radio.Button value="next15Days">Next 15 Days</Radio.Button>
@@ -157,7 +208,7 @@ function LocalEventPage() {
               />
             )}
           </Space>
-        </div>
+        </Space>
 
         {events.length === 0 ? (
           <Text>No events found for the selected period.</Text>
@@ -225,6 +276,17 @@ function LocalEventPage() {
           open={true}
           onCancel={handleEditCancel}
           onSave={handleEditSave}
+          mode="edit"
+        />
+      )}
+
+      {isCreating && (
+        <EditEventForm
+          open={true}
+          onCancel={handleCreateCancel}
+          onSave={handleCreateSave}
+          mode="create"
+          duplicates={duplicates}
         />
       )}
     </div>
