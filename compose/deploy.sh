@@ -32,6 +32,33 @@ check_docker_compose() {
     fi
 }
 
+check_init_setup() {
+    if [ ! -d traefik/data ] || [ ! -f traefik/data/acme.json ]; then
+        error "Traefik setup is not initialized. Run './deploy.sh init' first."
+        exit 1
+    fi
+
+    if [ ! -f .env ]; then
+        error ".env file not found. Run './deploy.sh init' first."
+        exit 1
+    fi
+
+    if [ ! -f docker-server.env ]; then
+        error "docker-server.env file not found. Run './deploy.sh init' first."
+        exit 1
+    fi
+
+    if [ ! -f docker-postgres.env ]; then
+        error "docker-postgres.env file not found. Run './deploy.sh init' first."
+        exit 1
+    fi
+
+    if [ ! -f traefik/config/traefik.yml ]; then
+        error "Traefik configuration file not found. Run './deploy.sh init' first."
+        exit 1
+    fi
+}
+
 # Initialize the required directories and files
 init_setup() {
     info "Creating required directories and files..."
@@ -139,6 +166,23 @@ update() {
     docker compose up --build -d
 }
 
+# Update the application
+clean() {
+    # confirm with user
+    read -p "Are you sure you want to clean up all configuration files and directories? This cannot be undone. (y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        info "Cleanup aborted."
+        exit 0
+    fi
+    info "Cleaning up all configuration files and directories..."
+    rm -rf traefik/data
+    rm -rf traefik/config/traefik.yml
+    rm -rf .env
+    rm -rf docker-server.env
+    rm -rf docker-postgres.env
+    info "Cleaned up all configuration files and directories"
+}
+
 # Show help message
 show_help() {
     echo "Usage: $0 COMMAND [OPTIONS]"
@@ -151,6 +195,7 @@ show_help() {
     echo "  restart                Restart the application"
     echo "  update                 Update the application (git pull + rebuild)"
     echo "  status                 Show status of all containers"
+    echo "  clean                  Clean up all configuration files and directories"
     echo
     echo "Examples:"
     echo "  $0 init"
@@ -167,6 +212,7 @@ case "$1" in
         init_setup
         ;;
     deploy)
+        check_init_setup
         check_docker
         check_docker_compose
         deploy
@@ -185,6 +231,12 @@ case "$1" in
         ;;
     status)
         docker compose ps
+        ;;
+    clean)
+        clean
+        ;;
+    help|--help|-h)
+        show_help
         ;;
     *)
         show_help

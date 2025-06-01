@@ -5,9 +5,10 @@ node_modules
 compose/.env
 compose/docker-compose.yml
 compose/docker-compose.override.yml
-compose/docker-postgres.yml
-compose/docker-server.yml
+compose/docker-postgres.env
+compose/docker-server.env
 compose/traefik/config/traefik.yml
+compose/traefik/data
 
 # Aider files
 .aider*
