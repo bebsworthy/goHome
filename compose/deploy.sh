@@ -64,6 +64,104 @@ check_init_setup() {
     fi
 }
 
+vimdiff_reminder() {
+    echo "
+--------------------------------------------
+WORKING WITH FOLDS
+za Toggles a text fold open/closed.
+zo Unfolds (opens) a fold.
+zc Closes (folds) a fold.
+zR Unfolds all folds.
+zM Folds up all folds.
+zn Turns off the text folding feature.
+zN Turns text the folding feature back on.
+
+# WORKING WITH DIFFS
+]c Navigates to the next change.
+[c Navigates to the previous change.
+dp Puts/gives the change at your cursor to the other file.
+do Obtains/gets the change from the other file.
+--------------------------------------------------
+"
+}
+
+# --- Core Function: check_and_vimdiff ---
+# Checks if two files are different and launches vimdiff if they are.
+#
+# @param $1: Path to the first file
+# @param $2: Path to the second file
+# @return 0 if files are the same or vimdiff was launched successfully.
+#         1 if incorrect arguments are provided to the function.
+#         2 if one or both files are not found.
+#         Other non-zero values if diff encounters an error.
+check_and_vimdiff() {
+    # Check if two arguments (file paths) are provided to the function
+    if [ "$#" -ne 2 ]; then
+        info "Usage: check_and_vimdiff <file1> <file2>" >&2 # Send usage error to stderr
+        return 1 # Return an error code
+    fi
+
+    local file1="$1" # Use local variables within the function
+    local file2="$2"
+
+    # Check if both files exist
+    if [ ! -f "$file1" ]; then
+        error "Error: File '$file1' not found." >&2
+        return 2 # Return an error code
+    fi
+
+    if [ ! -f "$file2" ]; then
+        error "Error: File '$file2' not found." >&2
+        return 2 # Return an error code
+    fi
+
+    # Use diff -q to quietly check for differences
+    # diff -q exits with 0 if files are the same, 1 if different, >1 for errors
+    diff -q "$file1" "$file2" > /dev/null
+    local diff_status=$? # Store the exit status of diff
+
+    # Check the exit status of diff
+    if [ "$diff_status" -eq 1 ]; then # 1 means files are different
+
+        info "Files '$file1' and '$file2' are different."
+        diff --side-by-side "$file1" "$file2"
+        read -p "Edit in vimdiff (y/N): " ready
+        if [[ "$ready" =~ ^[Yy]$ ]]; then
+            vimdiff_reminder
+            read -p "Press Enter to continue..."
+            echo "Files '$file1' and '$file2' are different. Launching vimdiff..."
+            vimdiff "$file1" "$file2"
+        fi
+    elif [ "$diff_status" -eq 0 ]; then # 0 means files are the same
+        info "Files '$file1' and '$file2' are the same."
+    else # Other non-zero status means diff encountered an error
+        info "Error during diff operation (status: $diff_status) for '$file1' and '$file2'." >&2
+        return "$diff_status" # Propagate diff's error status
+    fi
+
+    return 0 # Success
+}
+
+review() {
+    # for each that we createdin init_setup, we will check if it is different with diff
+    # and open it for review in vimdiff
+    info "Reviewing configuration files..."
+
+    # Check if the user has vimdiff installed
+    if ! command -v vimdiff &> /dev/null; then
+        error "vimdiff is not installed. Please install vimdiff first."
+        exit 1
+    fi
+
+    # As the user if he is ready to review the files default to Yes
+    check_and_vimdiff .env examples/.env.example 
+    check_and_vimdiff docker-server.env examples/docker-server.env 
+    check_and_vimdiff docker-postgres.env examples/docker-postgres.env 
+    check_and_vimdiff traefik/config/traefik.yml examples/traefik/config/traefik.yml 
+    check_and_vimdiff docker-compose.yml examples/docker-compose.yml 
+    info "Configuration files reviewed. Please make sure to update them as needed."
+}
+
 # Initialize the required directories and files
 init_setup() {
     info "Creating required directories and files..."
@@ -208,6 +306,7 @@ show_help() {
     echo "  update                 Update the application (git pull + rebuild)"
     echo "  status                 Show status of all containers"
     echo "  clean                  Clean up all configuration files and directories"
+    echo "  review                 Review configuration files with vimdiff"
     echo
     echo "Examples:"
     echo "  $0 init"
@@ -246,6 +345,10 @@ case "$1" in
         ;;
     clean)
         clean
+        ;;
+    review)
+        check_init_setup
+        review
         ;;
     help|--help|-h)
         show_help
