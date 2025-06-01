@@ -1,6 +1,16 @@
-.aider*
+
 node_modules
 
+# Ignore user deployement configuration
+compose/.env
+compose/docker-compose.yml
+compose/docker-compose.override.yml
+compose/docker-postgres.yml
+compose/docker-server.yml
+compose/traefik/config/traefik.yml
+
+# Aider files
+.aider*
 # Added by Claude Task Master
 # Logs
 logs
