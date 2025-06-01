@@ -41,6 +41,7 @@ export default defineConfig({
     VitePWA({
       srcDir: 'src',
       filename: 'service-worker.js',
+      
       manifest,
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       devOptions: {

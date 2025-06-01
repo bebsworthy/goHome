@@ -11,6 +11,8 @@ const config = {
         apiUrl: process.env.OPENAI_API_ENDPOINT || '',
         apiKey: process.env.OPENAI_API_KEY,
     },
+    // Data path configuration
+    dataPath: process.env.DATA || (process.env.NODE_ENV === 'test' ? 'test_data' : 'data'),
     // Image processing configuration
     imageFolder: process.env.EVENT_IMAGE_FOLDER || 'IMAGES',
     imageFolderPath: () => {
@@ -26,6 +28,9 @@ const config = {
     },
     imageFailedPath: (filename) => {
         return join(config.imageFolderPath(), FAILED, filename);
+    },
+    eventImagePath: (eventId, filename) => {
+        return join(process.env.DATA || 'data', 'images', eventId.toString(), filename);
     }
 };
 // Validate required configuration

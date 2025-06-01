@@ -1,5 +1,5 @@
-import { Card, Space, Typography, Tag, Button, Image, Carousel, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Space, Typography, Tag, Button, Image, Carousel, Tooltip, Modal, message } from 'antd';
+import { EditOutlined, DeleteOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import type { Event } from '@/utils/localeventApi';
 
 const { Title, Text } = Typography;
@@ -26,15 +26,66 @@ function formatTime(startTime?: string, endTime?: string): string {
 }
 
 export function EventCard({ event, onEdit, onDelete, isUpdating, isDeleting }: EventCardProps) {
+  const [modal, contextHolder] = Modal.useModal();
+
+  const handleDeleteImage = async (imageFilename: string) => {
+    try {
+      const response = await fetch(`/api/local/events/${event.id}/images/${imageFilename}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete image');
+      }
+
+      const result = await response.json();
+      message.success('Image deleted successfully');
+      // Update the event in the UI with the updated event from the response
+      onEdit(result.event);
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      message.error('Failed to delete image');
+    }
+  };
+
+  const confirmDeleteImage = (imageFilename: string) => {
+    modal.confirm({
+      title: 'Delete Image',
+      content: 'Are you sure you want to delete this image? This cannot be undone.',
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: () => handleDeleteImage(imageFilename),
+    });
+  };
+
   return (
     <Card
       style={{ width: '100%' }}
       cover={
         event.images && event.images.length > 0 && (
-          <div style={{ height: 300, backgroundColor: '#f0f0f0' }}>
+          <div style={{ height: 300, backgroundColor: '#f0f0f0', position: 'relative' }}>
             <Carousel arrows autoplay={false}>
               {event.images.map((image, index) => (
-                <div key={index}>
+                <div key={index} style={{ position: 'relative' }}>
+                  <Button
+                    type="primary"
+                    danger
+                    shape="circle"
+                    size="small"
+                    icon={<CloseCircleOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      confirmDeleteImage(image);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      zIndex: 9999,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    }}
+                  />
                   <Image
                     src={`/api/local/events/${event.id}/images/${image}`}
                     alt={`Event ${event.title} image ${index + 1}`}
@@ -73,6 +124,7 @@ export function EventCard({ event, onEdit, onDelete, isUpdating, isDeleting }: E
         </Button>,
       ]}
     >
+      {contextHolder}
       <Space direction="vertical" size="small" style={{ width: '100%' }}>
         <Title level={4} style={{ marginTop: 0 }}>{event.title}</Title>
         

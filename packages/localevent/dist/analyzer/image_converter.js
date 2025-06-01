@@ -94,14 +94,19 @@ export async function moveImageToStatusFolder(imagePath, status, metadata) {
         fs.mkdirSync(statusFolder, { recursive: true });
     }
     const imageName = path.basename(imagePath);
-    const newPath = path.join(statusFolder, imageName);
+    // TODO: rename image to something unique to avoid conflicts
+    // For now, we just keep the original name, but this should be improved
+    // e.g. by changing to a timestamp or a UUID
+    const newImageName = imageName;
+    const newPath = path.join(statusFolder, newImageName);
     try {
         fs.renameSync(imagePath, newPath);
         fs.writeFileSync(newPath + '.metadata.json', JSON.stringify(metadata || {}, null, 2));
-        console.log(`Moved image ${imageName} to ${status} folder.`);
+        console.log(`Moved image ${newImageName} to ${status} folder.`);
+        return path.relative(config.imageFolder, newPath);
     }
     catch (error) {
-        console.error(`Failed to move image ${imageName} to ${status} folder:`, error);
+        console.error(`Failed to move image ${newImageName} to ${status} folder:`, error);
         throw error;
     }
 }
@@ -162,7 +167,7 @@ export function fixEventInfo(eventInfo) {
         category: eventInfo.category?.trim() || undefined,
         email: fixEmailFormat(eventInfo.email),
         phone: fixPhoneFormat(eventInfo.phone),
-        rawText: eventInfo.rawText?.trim() || undefined
+        rawText: eventInfo.rawText?.trim() || undefined,
     };
 }
 // Main function to process all images in the directory
@@ -197,14 +202,15 @@ export async function processImagesDirectory() {
                 console.log('\nEnriched Event Information:');
                 console.log(JSON.stringify(fixedEventInfo, null, 2));
                 const result = await saveEvent(fixedEventInfo);
-                moveImageToStatusFolder(imagePath, ImageStatus.DONE, makeImageProcessingInfo(eventInfo, result.event.id));
+                const newImagePath = await moveImageToStatusFolder(imagePath, ImageStatus.DONE, makeImageProcessingInfo(eventInfo, result.id));
+                console.log(`Image moved to ${newImagePath}`);
             }
             else {
                 throw new Error('Model failed to extract information from the image.');
             }
         }
         catch (error) {
-            console.error('Failed to save event, xxx', error);
+            console.error('Failed to save event', error);
             moveImageToStatusFolder(imagePath, ImageStatus.FAILED, makeImageProcessingInfo(eventInfo, '', error));
         }
     }

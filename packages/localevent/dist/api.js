@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { PrismaClient } from './generated/prisma/client.js';
-import { dateRangeSchema, eventSchema } from './validator.js';
-import { writeFile, mkdir } from 'fs/promises';
-import { dirname } from 'path';
+import { dateRangeSchema, CreateEventInputSchema } from './validator.js';
+import { writeFile, mkdir, readFile, rm, unlink } from 'fs/promises';
+import { dirname, join } from 'path';
 import config from './config.js';
 import { imageApi } from './image-api.js';
 import stringSimilarity from 'string-similarity';
+import { v4 as uuidv4 } from 'uuid';
 const app = new Hono();
 const prisma = new PrismaClient();
 const SIMILARITY_THRESHOLD = 0.8; // Jaro-Winkler similarity threshold
@@ -62,6 +63,13 @@ app.route('/', imageApi);
 function formatDate(date) {
     return date.toISOString().split('T')[0];
 }
+export const EventIncludeDuplicates = {
+    duplicates: {
+        select: {
+            id: true,
+        }
+    }
+};
 // Format event response by converting dates to YYYY-MM-DD format
 const formatEventResponse = (event) => {
     return {
@@ -99,7 +107,8 @@ app.get('/events', async (c) => {
             },
             orderBy: {
                 dates: 'asc'
-            }
+            },
+            include: EventIncludeDuplicates
         });
         return c.json({
             events: events.map(formatEventResponse),
@@ -123,7 +132,8 @@ app.get('/events/:id', async (c) => {
             return c.json({ error: 'Invalid event ID' }, 400);
         }
         const event = await prisma.event.findUnique({
-            where: { id }
+            where: { id },
+            include: EventIncludeDuplicates
         });
         if (!event) {
             return c.json({ error: 'Event not found' }, 404);
@@ -139,7 +149,7 @@ app.get('/events/:id', async (c) => {
 app.post('/events', async (c) => {
     try {
         const body = await c.req.json();
-        const validatedData = eventSchema.parse(body);
+        const validatedData = CreateEventInputSchema.parse(body);
         // Convert string dates to Date objects and ensure they are valid
         const eventDates = validatedData.dates.map(date => {
             const d = new Date(date);
@@ -162,19 +172,12 @@ app.post('/events', async (c) => {
                     duplicateOfId: potentialDuplicates[0].id,
                     similarityScore: potentialDuplicates[0].similarityScore
                 })
-            }
+            },
+            include: EventIncludeDuplicates
         });
         // If there are potential duplicates, include them in the response
         // @TODO: This code is a mess
-        const response = {
-            event: formatEventResponse(event),
-            ...(potentialDuplicates.length > 0 && {
-                potentialDuplicates: await Promise.all(potentialDuplicates.map(async (dup) => ({
-                    event: formatEventResponse((await prisma.event.findUnique({ where: { id: dup.id } }))),
-                    similarityScore: dup.similarityScore
-                })))
-            })
-        };
+        const response = formatEventResponse(event);
         return c.json(response, 201);
     }
     catch (error) {
@@ -198,7 +201,7 @@ app.put('/events/:id', async (c) => {
             return c.json({ error: 'Event not found' }, 404);
         }
         const body = await c.req.json();
-        const validatedData = eventSchema.parse(body);
+        const validatedData = CreateEventInputSchema.parse(body);
         // Convert and validate dates
         const eventDates = validatedData.dates.map(date => {
             const d = new Date(date);
@@ -212,7 +215,8 @@ app.put('/events/:id', async (c) => {
             data: {
                 ...validatedData,
                 dates: eventDates,
-            }
+            },
+            include: EventIncludeDuplicates
         });
         return c.json(formatEventResponse(updatedEvent));
     }
@@ -236,6 +240,18 @@ app.delete('/events/:id', async (c) => {
         if (!existingEvent) {
             return c.json({ error: 'Event not found' }, 404);
         }
+        // Delete event's images directory if it exists
+        if (existingEvent.images?.length) {
+            const imageDir = join(config.dataPath, 'images', id.toString());
+            try {
+                await rm(imageDir, { recursive: true });
+            }
+            catch (error) {
+                console.error('Error deleting image directory:', error);
+                // Continue even if image deletion fails - we still want to delete the event
+            }
+        }
+        // Delete the event from database
         await prisma.event.delete({ where: { id } });
         return c.json({ message: 'Event deleted successfully' }, 200);
     }
@@ -274,6 +290,184 @@ app.post('/events/upload', async (c) => {
     }
     catch (error) {
         console.error('Error handling image upload:', error);
+        return c.json({ error: 'Internal server error' }, 500);
+    }
+});
+// Validate image mime type
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+// Add image to event endpoint
+app.post('/events/:id/image', async (c) => {
+    try {
+        const id = parseInt(c.req.param('id'));
+        if (isNaN(id)) {
+            return c.json({ error: 'Invalid event ID' }, 400);
+        }
+        // Check if event exists
+        const event = await prisma.event.findUnique({ where: { id } });
+        if (!event) {
+            return c.json({ error: 'Event not found' }, 404);
+        }
+        const formData = await c.req.formData();
+        const file = formData.get('file');
+        if (!file) {
+            return c.json({ error: 'No file provided' }, 400);
+        }
+        // Validate file type
+        if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+            return c.json({
+                error: 'Invalid file type. Only JPEG, PNG and WebP images are allowed.'
+            }, 400);
+        }
+        // Create a unique filename with UUID while preserving the extension
+        const ext = file.name.substring(file.name.lastIndexOf('.'));
+        const filename = `${uuidv4()}${ext}`;
+        // Create the event's image directory if it doesn't exist
+        const eventImageDir = join(config.dataPath, 'images', id.toString());
+        await mkdir(eventImageDir, { recursive: true });
+        // Save the file
+        const imagePath = join(eventImageDir, filename);
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        await writeFile(imagePath, buffer);
+        // Update the event's images array
+        const updatedEvent = await prisma.event.update({
+            where: { id },
+            data: {
+                images: {
+                    push: filename
+                }
+            },
+            include: EventIncludeDuplicates
+        });
+        return c.json({
+            message: 'Image uploaded successfully',
+            event: formatEventResponse(updatedEvent)
+        }, 200);
+    }
+    catch (error) {
+        console.error('Error uploading image:', error);
+        return c.json({ error: 'Internal server error' }, 500);
+    }
+});
+// Serve event images
+app.get('/events/:id/images/:filename', async (c) => {
+    try {
+        const id = parseInt(c.req.param('id'));
+        const filename = c.req.param('filename');
+        if (isNaN(id)) {
+            return c.json({ error: 'Invalid event ID' }, 400);
+        }
+        // Check if event exists and is the owner of the image
+        const event = await prisma.event.findUnique({ where: { id } });
+        if (!event) {
+            return c.json({ error: 'Event not found' }, 404);
+        }
+        if (!event.images?.includes(filename)) {
+            return c.json({ error: 'Image not found' }, 404);
+        }
+        // Construct the image path
+        const imagePath = join(config.dataPath, 'images', id.toString(), filename);
+        // Set content type based on file extension
+        const ext = filename.toLowerCase().split('.').pop() || '';
+        const contentType = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'webp': 'image/webp'
+        }[ext];
+        if (!contentType) {
+            return c.json({ error: 'Invalid image format' }, 400);
+        }
+        try {
+            const buffer = await readFile(imagePath);
+            return new Response(buffer, {
+                headers: {
+                    'Content-Type': contentType,
+                    'Cache-Control': 'public, max-age=31536000',
+                },
+            });
+        }
+        catch (error) {
+            console.error('Error reading image file:', error);
+            return c.json({ error: 'Image file not found' }, 404);
+        }
+    }
+    catch (error) {
+        console.error('Error serving image:', error);
+        return c.json({ error: 'Internal server error' }, 500);
+    }
+});
+// Delete an image from an event
+app.delete('/events/:id/images/:filename', async (c) => {
+    try {
+        const id = parseInt(c.req.param('id'));
+        const filename = c.req.param('filename');
+        if (isNaN(id)) {
+            return c.json({ error: 'Invalid event ID' }, 400);
+        }
+        // Check if event exists and has the image
+        const event = await prisma.event.findUnique({ where: { id } });
+        if (!event) {
+            return c.json({ error: 'Event not found' }, 404);
+        }
+        if (!event.images?.includes(filename)) {
+            return c.json({ error: 'Image not found' }, 404);
+        }
+        // Remove image file from disk
+        const imagePath = join(config.dataPath, 'images', id.toString(), filename);
+        try {
+            await unlink(imagePath);
+        }
+        catch (error) {
+            console.error('Error deleting image file:', error);
+            // Continue even if file deletion fails - we still want to update the DB
+        }
+        // Update event in database to remove image reference
+        const updatedEvent = await prisma.event.update({
+            where: { id },
+            data: {
+                images: {
+                    set: event.images.filter(img => img !== filename)
+                }
+            },
+            include: EventIncludeDuplicates
+        });
+        return c.json({
+            message: 'Image deleted successfully',
+            event: formatEventResponse(updatedEvent)
+        });
+    }
+    catch (error) {
+        console.error('Error deleting image:', error);
+        return c.json({ error: 'Internal server error' }, 500);
+    }
+});
+// Handle URL-based event creation (stub)
+app.post('/events/by-url', async (c) => {
+    try {
+        const body = await c.req.json();
+        const url = body.url;
+        if (!url) {
+            return c.json({ error: 'No URL provided' }, 400);
+        }
+        // For now, just create a stub event with the URL as title
+        // TODO: Implement proper URL parsing and event extraction
+        const stubEvent = await prisma.event.create({
+            data: {
+                title: `Event from: ${url}`,
+                dates: [new Date()], // Today's date as placeholder
+                location: 'To be determined',
+                description: `Shared from URL: ${url}\n\nThis event was automatically created from a shared URL. Please edit to add correct details.`,
+            },
+            include: EventIncludeDuplicates
+        });
+        return c.json({
+            message: 'Event created from URL. Please edit to add correct details.',
+            event: formatEventResponse(stubEvent)
+        }, 201);
+    }
+    catch (error) {
+        console.error('Error creating event from URL:', error);
         return c.json({ error: 'Internal server error' }, 500);
     }
 });

@@ -2,12 +2,13 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { Prisma, PrismaClient, type Event as DbEvent } from './generated/prisma/client.js';
 import { dateRangeSchema, CreateEventInputSchema } from './validator.js';
-import { writeFile, mkdir, readFile } from 'fs/promises';
+import { writeFile, mkdir, readFile, rm, unlink, rmdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import config from './config.js';
 import { imageApi } from './image-api.js';
 import stringSimilarity from 'string-similarity';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 
 const app = new Hono();
 const prisma = new PrismaClient();
@@ -290,6 +291,18 @@ app.delete('/events/:id', async (c) => {
       return c.json({ error: 'Event not found' }, 404);
     }
 
+    // Delete event's images directory if it exists
+    if (existingEvent.images?.length) {
+      const imageDir = join(config.dataPath, 'images', id.toString());
+      try {
+        await rm(imageDir, { recursive: true });
+      } catch (error) {
+        console.error('Error deleting image directory:', error);
+        // Continue even if image deletion fails - we still want to delete the event
+      }
+    }
+
+    // Delete the event from database
     await prisma.event.delete({ where: { id } });
     return c.json({ message: 'Event deleted successfully' }, 200);
   } catch (error) {
@@ -454,6 +467,88 @@ app.get('/events/:id/images/:filename', async (c) => {
     }
   } catch (error) {
     console.error('Error serving image:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Delete an image from an event
+app.delete('/events/:id/images/:filename', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const filename = c.req.param('filename');
+
+    if (isNaN(id)) {
+      return c.json({ error: 'Invalid event ID' }, 400);
+    }
+
+    // Check if event exists and has the image
+    const event = await prisma.event.findUnique({ where: { id } });
+    if (!event) {
+      return c.json({ error: 'Event not found' }, 404);
+    }
+
+    if (!event.images?.includes(filename)) {
+      return c.json({ error: 'Image not found' }, 404);
+    }
+
+    // Remove image file from disk
+    const imagePath = join(config.dataPath, 'images', id.toString(), filename);
+    try {
+      await unlink(imagePath);
+    } catch (error) {
+      console.error('Error deleting image file:', error);
+      // Continue even if file deletion fails - we still want to update the DB
+    }
+
+    // Update event in database to remove image reference
+    const updatedEvent = await prisma.event.update({
+      where: { id },
+      data: {
+        images: {
+          set: event.images.filter(img => img !== filename)
+        }
+      },
+      include: EventIncludeDuplicates
+    });
+
+    return c.json({ 
+      message: 'Image deleted successfully',
+      event: formatEventResponse(updatedEvent)
+    });
+  } catch (error) {
+    console.error('Error deleting image:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Handle URL-based event creation (stub)
+app.post('/events/by-url', async (c) => {
+  try {
+    const body = await c.req.json();
+    const url = body.url;
+    
+    if (!url) {
+      return c.json({ error: 'No URL provided' }, 400);
+    }
+
+    // For now, just create a stub event with the URL as title
+    // TODO: Implement proper URL parsing and event extraction
+    const stubEvent = await prisma.event.create({
+      data: {
+        title: `Event from: ${url}`,
+        dates: [new Date()], // Today's date as placeholder
+        location: 'To be determined',
+        description: `Shared from URL: ${url}\n\nThis event was automatically created from a shared URL. Please edit to add correct details.`,
+      },
+      include: EventIncludeDuplicates
+    });
+
+    return c.json({ 
+      message: 'Event created from URL. Please edit to add correct details.',
+      event: formatEventResponse(stubEvent)
+    }, 201);
+  } catch (error) {
+    console.error('Error creating event from URL:', error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
