@@ -46,13 +46,29 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       devOptions: {
         enabled: false,
-        type: 'module'
+        type: 'module',
+        navigateFallback: 'index.html',
+        navigateFallbackAllowlist: [/^index.html$/]
       },
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         cleanupOutdatedCaches: true,
-        sourcemap: true
+        sourcemap: true,
+        navigationPreload: true,
+        runtimeCaching: process.env.NODE_ENV === 'production' ? [
+          {
+            urlPattern: /^https:\/\/api\./i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
+              }
+            }
+          }
+        ] : []
       }
     }),
   ],

@@ -203,36 +203,36 @@ async function handleShareTarget(request: Request): Promise<Response> {
 
 // Cache station data with a cache-first strategy since we're already
 // storing this in IndexedDB and it doesn't change often
-console.log('Service Worker: Registering route for station API');
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/stations'),
-  new CacheFirst({
-    cacheName: 'station-api-cache',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 50,
-        maxAgeSeconds: 24 * 60 * 60, // 24 hours
-      }),
-    ],
-  }),
-);
+// console.log('Service Worker: Registering route for station API');
+// registerRoute(
+//   ({ url }) => url.pathname.startsWith('/api/stations'),
+//   new CacheFirst({
+//     cacheName: 'station-api-cache',
+//     plugins: [
+//       new ExpirationPlugin({
+//         maxEntries: 50,
+//         maxAgeSeconds: 24 * 60 * 60, // 24 hours
+//       }),
+//     ],
+//   }),
+// );
 
 // Cache journey search results with a network-first strategy
 // This ensures users get the most up-to-date train information when online
 // but can still access previous search results when offline
-console.log('Service Worker: Registering route for journey API');
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/train-journeys'),
-  new NetworkFirst({
-    cacheName: 'journey-api-cache',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 50,
-        maxAgeSeconds: 60 * 60, // 1 hour
-      }),
-    ],
-  }),
-);
+// console.log('Service Worker: Registering route for journey API');
+// registerRoute(
+//   ({ url }) => url.pathname.startsWith('/api/train-journeys'),
+//   new NetworkFirst({
+//     cacheName: 'journey-api-cache',
+//     plugins: [
+//       new ExpirationPlugin({
+//         maxEntries: 50,
+//         maxAgeSeconds: 60 * 60, // 1 hour
+//       }),
+//     ],
+//   }),
+// );
 
 // This allows the web app to trigger skipWaiting via
 // registration.waiting.postMessage({type: 'SKIP_WAITING'})
