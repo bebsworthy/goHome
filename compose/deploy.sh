@@ -33,6 +33,11 @@ check_docker_compose() {
 }
 
 check_init_setup() {
+    if [ ! -f docker-compose.yml ]; then
+        error "docker-compose.yml file not found. Run './deploy.sh init' first."
+        exit 1
+    fi
+
     if [ ! -d traefik/data ] || [ ! -f traefik/data/acme.json ]; then
         error "Traefik setup is not initialized. Run './deploy.sh init' first."
         exit 1
@@ -83,31 +88,38 @@ init_setup() {
 
     # Create .env file if it doesn't exist
     if [ ! -f .env ]; then
-        cp .env.example .env
+        cp examples/.env.example .env
         chmod 600 .env
         info "Created .env file with default values"
         warn "Please update values in .env file"
     fi
 
     if [ ! -f docker-server.env ]; then
-        cp docker-server.env.example docker-server.env
+        cp examples/docker-server.env docker-server.env
         chmod 600 .env
         info "Created docker-server.env file with default values"
         warn "Please update values in docker-server.env file"
     fi
 
     if [ ! -f docker-postgres.env ]; then
-        cp docker-postgres.env.example docker-postgres.env
+        cp examples/docker-postgres.env docker-postgres.env
         chmod 600 .env
         info "Created docker-postgres.env file with default values"
         warn "Please update values in docker-postgres.env file"
     fi
 
      if [ ! -f traefik/config/traefik.yml ]; then
-        cp traefik/config/traefik.yml.example traefik/config/traefik.yml
+        cp -R examples/traefik/ .
         chmod 600 .env
         info "Created traefik/config/traefik.yml file with default values"
         warn "Please update values in traefik/config/traefik.yml file"
+    fi
+
+     if [ ! -f docker-compose.yml ]; then
+        cp examples/docker-compose.yml docker-compose.yml
+        chmod 600 .env
+        info "Created docker-compose.yml file with default values"
+        warn "You do not need to update this file, but you can if you want to customize the deployment"
     fi
 }
 
@@ -175,11 +187,12 @@ clean() {
         exit 0
     fi
     info "Cleaning up all configuration files and directories..."
+    rm -f docker-compose.yml
     rm -rf traefik/data
-    rm -rf traefik/config/traefik.yml
-    rm -rf .env
-    rm -rf docker-server.env
-    rm -rf docker-postgres.env
+    rm -f traefik/config/traefik.yml
+    rm -f .env
+    rm -f docker-server.env
+    rm -f docker-postgres.env
     info "Cleaned up all configuration files and directories"
 }
 
