@@ -109,7 +109,7 @@ init_setup() {
     fi
 
      if [ ! -f traefik/config/traefik.yml ]; then
-        cp -R examples/traefik/ .
+        cp -r examples/traefik .
         chmod 600 .env
         info "Created traefik/config/traefik.yml file with default values"
         warn "Please update values in traefik/config/traefik.yml file"
@@ -188,8 +188,7 @@ clean() {
     fi
     info "Cleaning up all configuration files and directories..."
     rm -f docker-compose.yml
-    rm -rf traefik/data
-    rm -f traefik/config/traefik.yml
+    rm -rf traefik
     rm -f .env
     rm -f docker-server.env
     rm -f docker-postgres.env
