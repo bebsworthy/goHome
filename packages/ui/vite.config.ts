@@ -36,12 +36,13 @@ const manifest = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Add appType to handle client-side routing properly
+  appType: 'spa',
   plugins: [
     react(),
     VitePWA({
       srcDir: 'src',
       filename: 'service-worker.js',
-      
       manifest,
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       devOptions: {
@@ -80,11 +81,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/local': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false,
-      },
     },
   },
+   
 });

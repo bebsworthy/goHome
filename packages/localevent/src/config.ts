@@ -25,13 +25,17 @@ const INPUT = 'INPUT';
 // Load configuration from environment variables
 const config = {
   openAI: {
-    apiUrl: process.env.OPENAI_API_ENDPOINT || '',
-    apiKey: process.env.OPENAI_API_KEY,
+    apiUrl: process.env.EVENT_OPENAI_API_ENDPOINT,
+    apiKey: process.env.EVENT_OPENAI_API_KEY,
   },
+  databaseUrl: process.env.EVENT_DATABASE_URL,
   // Data path configuration
   dataPath: process.env.DATA || (process.env.NODE_ENV === 'test' ? 'test_data' : 'data'),
+  eventImagePath: (eventId: number, filename: string) => {
+    return join(process.env.DATA || 'data', 'images', eventId.toString(), filename);
+  },
   // Image processing configuration
-  imageFolder: process.env.EVENT_IMAGE_FOLDER || 'IMAGES',
+  imageFolder: process.env.EVENT_IMAGE_UPLOAD_FOLDER || 'IMAGES',
   imageFolderPath: () => {
     return path.isAbsolute(config.imageFolder) 
       ? config.imageFolder 
@@ -46,17 +50,17 @@ const config = {
   imageFailedPath: (filename: string) => {
     return join(config.imageFolderPath(), FAILED, filename);
   },
-  eventImagePath: (eventId: number, filename: string) => {
-    return join(process.env.DATA || 'data', 'images', eventId.toString(), filename);
-  }
+
 };
 
 // Validate required configuration
 export function validateConfig() {
   const missingVars = [];
   
-  if (!config.imageFolder) missingVars.push('EVENT_IMAGE_FOLDER');
-  if (!config.openAI.apiKey) missingVars.push('OPENAI_API_KEY');
+  if (!config.imageFolder) missingVars.push('EVENT_IMAGE_UPLOAD_FOLDER');
+  if (!config.openAI.apiUrl) missingVars.push('EVENT_OPENAI_API_ENDPOINT');
+  if (!config.openAI.apiKey) missingVars.push('EVENT_OPENAI_API_KEY');
+  if (!config.databaseUrl) missingVars.push('EVENT_DATABASE_URL');
   
   if (missingVars.length > 0) {
     console.error('Error: Required environment variables are not set.');

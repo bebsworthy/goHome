@@ -56,58 +56,32 @@ init_setup() {
 
     # Create .env file if it doesn't exist
     if [ ! -f .env ]; then
-        cat > .env << EOL
-SNCF_API_KEY=your-api-key-here
-SNCF_BASE_URL=https://api.sncf.com/v1/
-EOL
+        cp .env.example .env
         chmod 600 .env
         info "Created .env file with default values"
-        warn "Please update SNCF_API_KEY in .env file"
-    fi
-}
-
-# Configure environment variables
-configure_env() {
-    local api_key=$1
-
-    if [ -z "$api_key" ]; then
-        error "SNCF API key is required"
-        echo "Usage: $0 configure-env your-api-key"
-        exit 1
+        warn "Please update values in .env file"
     fi
 
-    info "Configuring environment variables..."
-    
-    # Update .env file
-    sed -i.bak "s/SNCF_API_KEY=.*/SNCF_API_KEY=$api_key/" .env
-    
-    info "Environment variables updated"
-    info "SNCF API key has been set"
-}
-
-# Configure domain settings
-configure_domain() {
-    local domain=$1
-    local email=$2
-
-    if [ -z "$domain" ] || [ -z "$email" ]; then
-        error "Domain and email are required"
-        echo "Usage: $0 configure yourdomain.com your@email.com"
-        exit 1
+    if [ ! -f docker-server.env ]; then
+        cp docker-server.env.example docker-server.env
+        chmod 600 .env
+        info "Created docker-server.env file with default values"
+        warn "Please update values in docker-server.env file"
     fi
 
-    info "Configuring domain settings..."
-    
-    # Update docker-compose.yml
-    sed -i.bak "s/traefik\.yourdomain\.com/traefik.$domain/g" docker-compose.yml
-    sed -i.bak "s/yourdomain\.com/$domain/g" docker-compose.yml
-    
-    # Update traefik.yml
-    sed -i.bak "s/your-email@example\.com/$email/g" traefik/config/traefik.yml
-    
-    info "Domain configured to: $domain"
-    info "Admin dashboard will be available at: traefik.$domain"
-    info "Let's Encrypt email set to: $email"
+    if [ ! -f docker-postgres.env ]; then
+        cp docker-postgres.env.example docker-postgres.env
+        chmod 600 .env
+        info "Created docker-postgres.env file with default values"
+        warn "Please update values in docker-postgres.env file"
+    fi
+
+     if [ ! -f traefik/config/traefik.yml ]; then
+        cp traefik/config/traefik.yml.example traefik/config/traefik.yml
+        chmod 600 .env
+        info "Created traefik/config/traefik.yml file with default values"
+        warn "Please update values in traefik/config/traefik.yml file"
+    fi
 }
 
 # Deploy the application
@@ -115,11 +89,6 @@ deploy() {
     # Check if .env exists and has required variables
     if [ ! -f .env ]; then
         error ".env file not found. Run './deploy.sh init' first"
-        exit 1
-    fi
-
-    if grep -q "your-api-key-here" .env; then
-        error "SNCF API key not configured. Run './deploy.sh configure-env your-api-key' first"
         exit 1
     fi
 
@@ -132,8 +101,8 @@ deploy() {
         info "Please wait a few minutes for Let's Encrypt certificates to be issued"
         echo
         info "You can check the logs with: ./deploy.sh logs"
-        info "Access your application at: https://yourdomain.com"
-        info "Access Traefik dashboard at: https://traefik.yourdomain.com"
+        info "Access your application at: https://${DOMAIN:-yourdomain.com}"
+        info "Access Traefik dashboard at: https://traefik.${DOMAIN:-yourdomain.com}/dashboard/"
     else
         error "Deployment failed. Check the logs for more information."
         exit 1
@@ -175,10 +144,8 @@ show_help() {
     echo "Usage: $0 COMMAND [OPTIONS]"
     echo
     echo "Commands:"
-    echo "  init                    Initialize required directories and files"
-    echo "  configure DOMAIN EMAIL  Configure domain and email settings"
-    echo "  configure-env API_KEY   Configure SNCF API key"
-    echo "  deploy                  Build and deploy the application"
+    echo "  init                   Initialize required directories and files"
+    echo "  deploy                 Build and deploy the application"
     echo "  logs [SERVICE]         Show logs (optionally for a specific service)"
     echo "  stop                   Stop the application"
     echo "  restart                Restart the application"
@@ -187,8 +154,6 @@ show_help() {
     echo
     echo "Examples:"
     echo "  $0 init"
-    echo "  $0 configure example.com admin@example.com"
-    echo "  $0 configure-env your-sncf-api-key"
     echo "  $0 deploy"
     echo "  $0 logs"
     echo "  $0 logs gohome"
@@ -200,12 +165,6 @@ case "$1" in
         check_docker
         check_docker_compose
         init_setup
-        ;;
-    configure)
-        configure_domain "$2" "$3"
-        ;;
-    configure-env)
-        configure_env "$2"
         ;;
     deploy)
         check_docker
