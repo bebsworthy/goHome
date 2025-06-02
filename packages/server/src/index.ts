@@ -9,7 +9,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { app as sncfApi } from './sncf-api.js'
-import { app as localeventApi } from '@gohome/localevent/src/api.js'
+import { app as localeventApi } from '@gohome/localevent'
 
 const app = new Hono()
 

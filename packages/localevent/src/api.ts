@@ -1,14 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Prisma, PrismaClient, type Event as DbEvent } from './generated/prisma/client.js';
+import { Prisma, PrismaClient, type Event as DbEvent } from './generated/prisma/index.js';
 import { dateRangeSchema, CreateEventInputSchema } from './validator.js';
-import { writeFile, mkdir, readFile, rm, unlink, rmdir } from 'fs/promises';
+import { writeFile, mkdir, readFile, rm, unlink } from 'fs/promises';
 import { dirname, join } from 'path';
 import config from './config.js';
 import { imageApi } from './image-api.js';
 import stringSimilarity from 'string-similarity';
 import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
 
 const app = new Hono();
 const prisma = new PrismaClient();

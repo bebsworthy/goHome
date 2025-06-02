@@ -12,8 +12,7 @@ import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
-
+import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 /// <reference lib="webworker" />
 /// <reference lib="es2020" />
 

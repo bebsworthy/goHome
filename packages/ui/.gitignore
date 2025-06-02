@@ -32,3 +32,4 @@ dist/assets/
 dist/registerSW.js
 dist/manifest.webmanifest
 dist/index.html
+dist

@@ -35,3 +35,4 @@ node_modules
 # TEST_SNCF_TO_STATION_ID=stop_area:SNCF:87271460    # Mantes-la-Jolie
 
 /src/generated/prisma
+dist
